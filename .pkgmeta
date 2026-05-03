@@ -1,0 +1,26 @@
+package-as: DownToDarkmoon
+
+# Standard for addons that vendor libs — avoids publishing broken “no-lib” zips without embedded libraries.
+enable-nolib-creation: no
+
+# Fetched during WoW Packager / release.sh builds (canonical upstream copies).
+externals:
+  Libs/LibStub: https://repos.curseforge.com/wow/libstub/trunk
+  Libs/CallbackHandler-1.0: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0
+  Libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1
+  Libs/LibDBIcon-1.0: https://repos.curseforge.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
+
+# CurseForge “embedded library” relations (project slugs).
+embedded-libraries:
+  - libstub
+  - callbackhandler
+  - libdatabroker-1-1
+  - libdbicon-1-0
+
+ignore:
+  - .github
+  - .gitignore
+  - .pkgmeta
+  - README.md
+  - Libs/LibStub/tests
+  - Libs/LibDataBroker-1.1/README.textile

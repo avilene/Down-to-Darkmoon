@@ -1,4 +1,5 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
+<!-- Embedded libs (required load order; matches LibDataBroker / LibDBIcon deps). -->
 <Script file="Libs/LibStub/LibStub.lua"/>
 <Script file="Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua"/>
 <Script file="Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua"/>

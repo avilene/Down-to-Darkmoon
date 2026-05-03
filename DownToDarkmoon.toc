@@ -18,6 +18,7 @@
 ## Version: 1.0.0
 ## SavedVariables: DownToDarkmoonDB
 ## OptionalDeps: TomTom
+## X-Curse-Project-ID: 1532454
 
 embeds.xml
 Core.lua
