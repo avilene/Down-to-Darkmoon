@@ -1,0 +1,30 @@
+## Interface: 120000, 120001, 120005
+## Title: Down to Darkmoon
+## IconTexture: Interface\Icons\INV_Misc_Ticket_Tarot_Elemental_01
+## Category: Professions
+## Category-enUS: Professions
+## Category-deDE: Berufe
+## Category-esES: Profesiones
+## Category-esMX: Profesiones
+## Category-frFR: Métiers
+## Category-itIT: Professioni
+## Category-koKR: 전문 기술
+## Category-ptBR: Profissões
+## Category-ruRU: Профессии
+## Category-zhCN: 专业
+## Category-zhTW: 專業技能
+## Notes: Darkmoon Faire profession shopping list, waypoints, and bank/vendor quantity assist.
+## Author: DownToDarkmoon
+## Version: 1.0.0
+## SavedVariables: DownToDarkmoonDB
+## OptionalDeps: TomTom
+
+embeds.xml
+Core.lua
+Calendar.lua
+Data/Retail.lua
+VendorRouting.lua
+Navigation.lua
+QuantityAssist.lua
+UI.lua
+Minimap.lua
