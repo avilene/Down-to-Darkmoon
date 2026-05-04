@@ -17,6 +17,7 @@
 ## Author: DownToDarkmoon
 ## Version: 1.2.0
 ## SavedVariables: DownToDarkmoonDB
+## SavedVariablesPerCharacter: DownToDarkmoonCharDB
 ## OptionalDeps: TomTom
 ## X-Curse-Project-ID: 1532454
 

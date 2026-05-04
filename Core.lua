@@ -14,7 +14,10 @@ local defaults = {
     hide = false,
     minimapPos = 225,
   },
-  --- Per-character: profession quest IDs excluded from Pull/Buy hints (right-click quest row).
+}
+
+--- Ignores live in DownToDarkmoonCharDB (SavedVariablesPerCharacter).
+local charDefaults = {
   ignoredProfessionQuestIds = {},
 }
 
@@ -38,6 +41,10 @@ end
 
 function addon:GetDB()
   return DownToDarkmoonDB
+end
+
+function addon:GetCharDB()
+  return DownToDarkmoonCharDB
 end
 
 function addon:PlayerSkillLineSet()
@@ -186,7 +193,10 @@ function addon:IsProfessionQuestIgnored(questId)
   if not questId then
     return false
   end
-  local db = self:GetDB()
+  local db = DownToDarkmoonCharDB
+  if type(db) ~= "table" then
+    return false
+  end
   local t = db.ignoredProfessionQuestIds
   if type(t) ~= "table" then
     return false
@@ -198,7 +208,10 @@ function addon:SetProfessionQuestIgnored(questId, ignored)
   if not questId then
     return
   end
-  local db = self:GetDB()
+  local db = DownToDarkmoonCharDB
+  if type(db) ~= "table" then
+    return
+  end
   if type(db.ignoredProfessionQuestIds) ~= "table" then
     db.ignoredProfessionQuestIds = {}
   end
@@ -331,6 +344,22 @@ eventFrame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
 eventFrame:SetScript("OnEvent", function(_, event, arg1)
   if event == "ADDON_LOADED" and arg1 == addonName then
     DownToDarkmoonDB = mergeDefaults(DownToDarkmoonDB, defaults)
+    DownToDarkmoonCharDB = mergeDefaults(DownToDarkmoonCharDB, charDefaults)
+    --- One-time: copy legacy account-wide ignores into this character’s table (pre–per-char storage).
+    if DownToDarkmoonCharDB._legacyIgnoresImported ~= true then
+      local legacy = DownToDarkmoonDB.ignoredProfessionQuestIds
+      if type(legacy) == "table" then
+        for questId, v in pairs(legacy) do
+          if v == true then
+            local id = type(questId) == "number" and questId or tonumber(questId)
+            if id then
+              DownToDarkmoonCharDB.ignoredProfessionQuestIds[id] = true
+            end
+          end
+        end
+      end
+      DownToDarkmoonCharDB._legacyIgnoresImported = true
+    end
     if type(DownToDarkmoonDB.minimapAngle) == "number" and type(DownToDarkmoonDB.minimap) == "table" then
       DownToDarkmoonDB.minimap.minimapPos = DownToDarkmoonDB.minimap.minimapPos or DownToDarkmoonDB.minimapAngle
     end

@@ -200,11 +200,11 @@ function UI:GetQuestRow(i)
         1
       )
       if self.dtdIgnored then
-        GameTooltip:AddLine("Ignored: shopping / Pull / Buy hidden for this quest.", 0.55, 0.55, 0.6)
+        GameTooltip:AddLine("Ignored on this character: shopping / Pull / Buy hidden.", 0.55, 0.55, 0.6)
         GameTooltip:AddLine("Right-click: track again.", 0.65, 0.85, 1)
       elseif self.questCompleted then
         GameTooltip:AddLine("Completed for this Darkmoon Faire.", 0.25, 1, 0.35)
-        GameTooltip:AddLine("Right-click: ignore (grey out, hide shopping).", 0.65, 0.85, 1)
+        GameTooltip:AddLine("Right-click: ignore for this character (grey out, hide shopping).", 0.65, 0.85, 1)
       else
         if addon.Navigation:IsTomTomLoaded() then
           GameTooltip:AddLine("Click: waypoint on Darkmoon Island.", 0.7, 0.9, 1)
@@ -227,7 +227,7 @@ function UI:GetQuestRow(i)
               true)
           end
         end
-        GameTooltip:AddLine("Right-click: ignore quest.", 0.65, 0.85, 1)
+        GameTooltip:AddLine("Right-click: ignore quest on this character.", 0.65, 0.85, 1)
       end
       GameTooltip:Show()
     end)
