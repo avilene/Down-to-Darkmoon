@@ -69,6 +69,11 @@ function QuantityAssist:IsMerchantUIOpen()
       return true
     end
   end
+  --- Listing is populated while the buy UI is usable; frame visibility / interaction type can lie (new vendor UI).
+  local n = GetMerchantNumItems and GetMerchantNumItems() or 0
+  if n > 0 then
+    return true
+  end
   return false
 end
 
@@ -77,6 +82,24 @@ local function itemIdFromMerchantLink(link)
     return nil
   end
   return tonumber(link:match("Hitem:(%d+)") or link:match("item:(%d+)"))
+end
+
+--- Retail exposes listing fields via C_MerchantFrame; legacy globals may be nil.
+local function getMerchantItemSaleFields(index)
+  if not index then
+    return nil, nil, nil
+  end
+  if C_MerchantFrame and type(C_MerchantFrame.GetItemInfo) == "function" then
+    local ok, info = pcall(C_MerchantFrame.GetItemInfo, index)
+    if ok and type(info) == "table" then
+      return info.price, info.stackCount, info.numAvailable
+    end
+  end
+  if type(GetMerchantItemInfo) == "function" then
+    local _, _, price, stackCount, numAvailable = GetMerchantItemInfo(index)
+    return price, stackCount, numAvailable
+  end
+  return nil, nil, nil
 end
 
 local function pickupContainerItem(bag, slot)
@@ -203,6 +226,15 @@ function QuantityAssist:FindMerchantIndex(itemId)
   end
   local n = GetMerchantNumItems and GetMerchantNumItems() or 0
   for i = 1, n do
+    if C_MerchantFrame and type(C_MerchantFrame.GetItemInfo) == "function" then
+      local ok, info = pcall(C_MerchantFrame.GetItemInfo, i)
+      if ok and type(info) == "table" then
+        local cid = info.itemID or info.itemId
+        if cid == itemId then
+          return i
+        end
+      end
+    end
     local mid = GetMerchantItemID and GetMerchantItemID(i)
     if mid == itemId then
       return i
@@ -220,7 +252,10 @@ function QuantityAssist:GetAffordableBuyQty(merchantIndex, wantQty)
   if not merchantIndex or not wantQty or wantQty <= 0 then
     return 0
   end
-  local _, _, price, stackCount, numAvailable = GetMerchantItemInfo(merchantIndex)
+  local price, stackCount, numAvailable = getMerchantItemSaleFields(merchantIndex)
+  if price == nil and stackCount == nil and numAvailable == nil then
+    return 0
+  end
   if not price or price <= 0 then
     return math.min(wantQty, stackCount or wantQty)
   end

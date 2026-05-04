@@ -225,6 +225,7 @@ function UI:GetItemRow(i)
     bg:SetPoint("LEFT", irow, "LEFT", 0, 0)
     bg:SetPoint("RIGHT", irow, "RIGHT", -ITEM_ACTION_BAR_OFFSET, 0)
     bg:SetHeight(ITEM_ROW_H)
+    bg:RegisterForClicks("LeftButtonUp")
     irow.bg = bg
 
     local bgHi = bg:CreateTexture(nil, "HIGHLIGHT")
@@ -262,12 +263,14 @@ function UI:GetItemRow(i)
     buy:SetText("Buy")
     buy:SetPoint("RIGHT", irow, "RIGHT", -2, 0)
     buy:SetFrameLevel(20)
+    buy:RegisterForClicks("LeftButtonUp")
 
     local pull = CreateFrame("Button", nil, irow, "InsecureActionButtonTemplate, UIPanelButtonTemplate")
     pull:SetSize(ACTION_BTN_W, ACTION_BTN_H)
     pull:SetText("Pull")
     pull:SetPoint("RIGHT", buy, "LEFT", -ACTION_BTN_GAP, 0)
     pull:SetFrameLevel(20)
+    pull:RegisterForClicks("LeftButtonUp")
     pull:SetScript("OnClick", function(self)
       local itemId = self.dtdItemId
       local need = self.dtdNeed
