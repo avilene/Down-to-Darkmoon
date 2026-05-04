@@ -112,6 +112,75 @@ function addon:SetItemIconTexture(texture, itemId)
   end
 end
 
+--- Fallback trade-skill icons by TradeSkillLineID (matches Data/Retail.lua) when C_TradeSkillUI / GetProfessionInfo fail.
+local FALLBACK_PROFESSION_TEXTURE = {
+  [171] = "Interface\\Icons\\Trade_Alchemy",
+  [164] = "Interface\\Icons\\Trade_BlackSmithing",
+  [165] = "Interface\\Icons\\Trade_Leatherworking",
+  [197] = "Interface\\Icons\\Trade_Tailoring",
+  [202] = "Interface\\Icons\\Trade_Engineering",
+  [182] = "Interface\\Icons\\Trade_Herbalism",
+  [186] = "Interface\\Icons\\Trade_Mining",
+  [393] = "Interface\\Icons\\Trade_Skinning",
+  [755] = "Interface\\Icons\\INV_Misc_Gem_02",
+  [333] = "Interface\\Icons\\Trade_Engraving",
+  [773] = "Interface\\Icons\\INV_Inscription_TradeskillBook",
+  [185] = "Interface\\Icons\\INV_Misc_Food_15",
+  [356] = "Interface\\Icons\\Trade_Fishing",
+  [394] = "Interface\\Icons\\Trade_Archaeology",
+}
+
+function addon:GetProfessionIconTextureForSkillLine(skillLineId)
+  if not skillLineId then
+    return nil
+  end
+  if C_TradeSkillUI and type(C_TradeSkillUI.GetTradeSkillTexture) == "function" then
+    local ok, tex = pcall(C_TradeSkillUI.GetTradeSkillTexture, skillLineId)
+    if ok and tex and tex ~= "" then
+      return tex
+    end
+  end
+  local profs = { GetProfessions() }
+  for _, profIndex in ipairs(profs) do
+    if profIndex then
+      local _, icon, _, _, _, _, sl = GetProfessionInfo(profIndex)
+      if sl == skillLineId and icon then
+        return icon
+      end
+    end
+  end
+  return FALLBACK_PROFESSION_TEXTURE[skillLineId]
+end
+
+function addon:SetProfessionIconTexture(texture, skillLineId)
+  local icon = self:GetProfessionIconTextureForSkillLine(skillLineId)
+  if not icon then
+    texture:Hide()
+    return
+  end
+  texture:Show()
+  if type(SetPortraitToTexture) == "function" then
+    SetPortraitToTexture(texture, icon)
+  else
+    texture:SetTexture(icon)
+  end
+end
+
+--- Prefix for GameTooltip:AddLine; uses inline |T…|t when a texture exists.
+function addon:FormatTooltipLineWithProfessionIcon(skillLineId, text)
+  if not text or text == "" then
+    return text or ""
+  end
+  local icon = self:GetProfessionIconTextureForSkillLine(skillLineId)
+  if not icon then
+    return text
+  end
+  if type(icon) == "number" then
+    return ("|T%d:20:20:0:0|t %s"):format(icon, text)
+  end
+  return ("|T%s:20:20:0:0|t %s"):format(icon, text)
+end
+
 --- Green row uses Blizzard's per-character quest completion flag for this questId (same as minimap quest icons).
 function addon:IsProfessionQuestIgnored(questId)
   if not questId then

@@ -167,8 +167,13 @@ function UI:GetQuestRow(i)
     hilite:SetColorTexture(1, 1, 1, 0.05)
     qBtn:SetHighlightTexture(hilite)
 
+    local profIcon = qBtn:CreateTexture(nil, "ARTWORK")
+    profIcon:SetSize(16, 16)
+    profIcon:SetPoint("LEFT", qBtn, "LEFT", 6, 0)
+    qBtn.profIcon = profIcon
+
     local qtext = qBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    qtext:SetPoint("LEFT", 8, 0)
+    qtext:SetPoint("LEFT", profIcon, "RIGHT", 4, 0)
     qtext:SetPoint("RIGHT", row, "RIGHT", -8, 0)
     qtext:SetJustifyH("LEFT")
     qBtn.qtext = qtext
@@ -188,7 +193,12 @@ function UI:GetQuestRow(i)
     end)
     qBtn:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:AddLine(self.qName or "", 1, 1, 1)
+      GameTooltip:AddLine(
+        addon:FormatTooltipLineWithProfessionIcon(self.dtdSkillLineId, self.qName or ""),
+        1,
+        1,
+        1
+      )
       if self.dtdIgnored then
         GameTooltip:AddLine("Ignored: shopping / Pull / Buy hidden for this quest.", 0.55, 0.55, 0.6)
         GameTooltip:AddLine("Right-click: track again.", 0.65, 0.85, 1)
@@ -444,11 +454,20 @@ function UI:Refresh()
       row.qBtn.poiId = q.poiId
       row.qBtn.dtdQuestId = q.questId
       row.qBtn.dtdPoiId = q.poiId
+      row.qBtn.dtdSkillLineId = q.skillLineId
+      addon:SetProfessionIconTexture(row.qBtn.profIcon, q.skillLineId)
 
       local completed = addon:IsProfessionQuestCompleted(q.questId)
       local ignored = addon:IsProfessionQuestIgnored(q.questId)
       row.qBtn.questCompleted = completed
       row.qBtn.dtdIgnored = ignored
+      if row.qBtn.profIcon then
+        if ignored then
+          row.qBtn.profIcon:SetVertexColor(0.55, 0.55, 0.58)
+        else
+          row.qBtn.profIcon:SetVertexColor(1, 1, 1)
+        end
+      end
       if ignored then
         if completed then
           row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " - completed (ignored)|r", q.poiId))
