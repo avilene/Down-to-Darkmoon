@@ -8,19 +8,75 @@ addon.Calendar = Calendar
 --- While on the faire grounds, BestMap is a floor uiMap whose parent is the Darkmoon overview (407).
 local DARKMOON_OVERVIEW_UIMAP = 407
 
+--- `CalendarHolidayInfo.texture` and `CalendarDayEvent.iconTexture` are **fileID** (locale-independent).
+--- Retail Darkmoon calendar uses 235446–235451 (faction / variant); not the generic ticket icon.
+local DARKMOON_CALENDAR_FILE_IDS = {
+  [235446] = true,
+  [235447] = true,
+  [235448] = true,
+  [235449] = true,
+  [235450] = true,
+  [235451] = true,
+}
+
+local function calendarFileIdIsDarkmoon(id)
+  return type(id) == "number" and id > 0 and DARKMOON_CALENDAR_FILE_IDS[id] == true
+end
+
+local function rememberDarkmoonCalendarFileId(id)
+  if type(id) == "number" and id > 0 then
+    DARKMOON_CALENDAR_FILE_IDS[id] = true
+  end
+end
+
+--- Substrings from localized calendar titles/descriptions (fallback when texture id is missing or changes).
+--- enUS uses "Darkmoon"; deDE uses "Dunkelmond", etc.
+--- Match on string.lower for Latin scripts; also search the raw string for CJK/Cyrillic tokens.
+local DARKMOON_TITLE_TOKENS = {
+  "darkmoon",
+  "dunkelmond", -- deDE (e.g. Dunkelmond-Jahrmarkt)
+  "sombrelune", -- frFR
+  "negraluna", -- es/pt (Negraluna / Luna Negra)
+  "lunargenta", -- esES Lunargenta
+  "luna negra", -- es Feria de la Luna Negra
+  "lunacupa", -- itIT Fiera di Lunacupa
+  "новолун", -- ruRU (Ярмарка Новолуния, …)
+  "暗月", -- zhCN/zhTW
+  "다크문", -- koKR
+}
+
 local function textMentionsDarkmoon(s)
   if not s or s == "" then
     return false
   end
   local l = string.lower(s)
-  return string.find(l, "darkmoon", 1, true) ~= nil
+  for i = 1, #DARKMOON_TITLE_TOKENS do
+    local token = DARKMOON_TITLE_TOKENS[i]
+    if string.find(l, token, 1, true) ~= nil or string.find(s, token, 1, true) ~= nil then
+      return true
+    end
+  end
+  return false
+end
+
+local function calendarEntryLooksLikeDarkmoon(name, description, holidayTexture, dayIconTexture)
+  if calendarFileIdIsDarkmoon(holidayTexture) or calendarFileIdIsDarkmoon(dayIconTexture) then
+    return true
+  end
+  if textMentionsDarkmoon(name) or textMentionsDarkmoon(description) then
+    --- Learn file IDs for this session — next refreshes match by id even if strings change or checks reorder.
+    rememberDarkmoonCalendarFileId(holidayTexture)
+    rememberDarkmoonCalendarFileId(dayIconTexture)
+    return true
+  end
+  return false
 end
 
 local function holidayLooksLikeDarkmoon(info)
   if not info then
     return false
   end
-  return textMentionsDarkmoon(info.name) or textMentionsDarkmoon(info.description)
+  return calendarEntryLooksLikeDarkmoon(info.name, info.description, info.texture, nil)
 end
 
 local function compareCalendar(a, b)
@@ -123,14 +179,20 @@ local function scanDayEventsForDarkmoon(now)
           for idx = 1, n do
             local okEv, ev = pcall(C_Calendar.GetDayEvent, offset, day, idx)
             if okEv and ev then
-              local title
               if type(ev) == "table" then
-                title = ev.title
+                if
+                  calendarEntryLooksLikeDarkmoon(ev.title, "", nil, ev.iconTexture)
+                  and sameCalendarDay(now, monthInfo.year, monthInfo.month, day)
+                then
+                  return true
+                end
               elseif type(ev) == "string" then
-                title = ev
-              end
-              if title and textMentionsDarkmoon(title) and sameCalendarDay(now, monthInfo.year, monthInfo.month, day) then
-                return true
+                if
+                  textMentionsDarkmoon(ev)
+                  and sameCalendarDay(now, monthInfo.year, monthInfo.month, day)
+                then
+                  return true
+                end
               end
             end
           end
