@@ -48,7 +48,7 @@ function MinimapMod:Init()
     OnTooltipShow = function(tooltip)
       if addon:IsDarkmoonActive() then
         tooltip:AddLine("Down to Darkmoon", 1, 1, 1)
-        tooltip:AddLine("Click to toggle the shopping list.", 0.75, 0.85, 1, true)
+        tooltip:AddLine("Click to toggle the addon.", 0.75, 0.85, 1, true)
       else
         tooltip:AddLine("Darkmoon Not Active", 1, 0.35, 0.35)
       end
