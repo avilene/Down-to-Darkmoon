@@ -253,7 +253,40 @@ function Calendar:Init()
   end)
 end
 
---- Earliest Darkmoon Faire **start** strictly after `now` (from calendar holiday info).
+--- Calendar start time for the Darkmoon instance that is active **today** (nil if not found in API).
+local function getActiveDarkmoonHolidayStartTime(now)
+  if not now or not C_Calendar or not C_Calendar.GetHolidayInfo then
+    return nil
+  end
+  for _, offset in ipairs({ 0, 1 }) do
+    local ok, monthInfo = pcall(function()
+      return C_Calendar.GetMonthInfo(offset)
+    end)
+    if ok and monthInfo and monthInfo.numDays and monthInfo.year and monthInfo.month then
+      for day = 1, monthInfo.numDays do
+        for idx = 1, 32 do
+          local info = C_Calendar.GetHolidayInfo(offset, day, idx)
+          if not info then
+            break
+          end
+          if holidayLooksLikeDarkmoon(info) and info.startTime then
+            if Calendar:IsActiveFromHolidayInfo(now, info, monthInfo, day) then
+              return info.startTime
+            end
+          end
+        end
+      end
+    end
+  end
+  return nil
+end
+
+--- While the Faire is up, the next occurrence isn’t in the calendar list yet; approximate as start + 5 weeks.
+local NEXT_DARKMOON_START_OFFSET_WEEKS = 5
+local NEXT_DARKMOON_START_OFFSET_DAYS = NEXT_DARKMOON_START_OFFSET_WEEKS * 7
+
+--- Earliest Darkmoon Faire **start** after `now`, excluding the instance running **now**
+--- (calendar APIs sometimes list the active faire with a start that still sorts after the clock).
 function Calendar:GetNextDarkmoonStartAfterNow()
   if not C_DateAndTime or not C_DateAndTime.GetCurrentCalendarTime then
     return nil
@@ -262,12 +295,23 @@ function Calendar:GetNextDarkmoonStartAfterNow()
     return nil
   end
   local now = C_DateAndTime.GetCurrentCalendarTime()
+
+  if addon:IsDarkmoonActive() then
+    local startCt = getActiveDarkmoonHolidayStartTime(now)
+    if startCt and C_DateAndTime.AdjustTimeByDays then
+      local ok, shifted = pcall(C_DateAndTime.AdjustTimeByDays, startCt, NEXT_DARKMOON_START_OFFSET_DAYS)
+      if ok and shifted then
+        return shifted
+      end
+    end
+  end
+
   local best = nil
   for offset = 0, 5 do
     local ok, monthInfo = pcall(function()
       return C_Calendar.GetMonthInfo(offset)
     end)
-    if ok and monthInfo and monthInfo.numDays then
+    if ok and monthInfo and monthInfo.numDays and monthInfo.year and monthInfo.month then
       for day = 1, monthInfo.numDays do
         for idx = 1, 32 do
           local info = C_Calendar.GetHolidayInfo(offset, day, idx)
@@ -275,7 +319,8 @@ function Calendar:GetNextDarkmoonStartAfterNow()
             break
           end
           if holidayLooksLikeDarkmoon(info) and info.startTime then
-            if compareCalendar(info.startTime, now) > 0 then
+            local activeNow = self:IsActiveFromHolidayInfo(now, info, monthInfo, day)
+            if not activeNow and compareCalendar(info.startTime, now) > 0 then
               if not best or compareCalendar(info.startTime, best) < 0 then
                 best = info.startTime
               end
