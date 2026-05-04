@@ -1,6 +1,5 @@
 # Packages and publishes with BigWigsMods/packager (WoW Packager action).
 #
-# Jobs: .github/workflows/bump-job.yml, .github/workflows/package-job.yml
 # Scripts: .github/scripts/bump-version-from-toc.sh, bump-job-summary.sh
 #
 # Triggers:
@@ -20,7 +19,20 @@
 # CurseForge project id: ## X-Curse-Project-ID in DownToDarkmoon.toc, or packager -p <id>
 #
 # If branch protection blocks pushes from Actions, allow github-actions[bot] or use a PAT on checkout.
+#
+# Run title in the Actions tab (not the static workflow name): run-name below. Commit subject comes
+# from the push payload when GitHub sends it; manual runs have no head_commit in the event, so we
+# show bump + short SHA instead (the run still executes on that commit).
 name: Release
+
+run-name: >-
+  ${{
+    github.event.head_commit && github.event.head_commit.message &&
+      format('Release: {0}', split(github.event.head_commit.message, '\n')[0])
+    || (github.event_name == 'workflow_dispatch' &&
+      format('Release: {0} bump · {1}', inputs.bump, github.sha))
+    || format('Release: {0}', github.sha)
+  }}
 
 on:
   workflow_dispatch:
@@ -51,10 +63,30 @@ concurrency:
 jobs:
   bump:
     if: github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/bump-job.yml
-    with:
-      bump: ${{ inputs.bump }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Bump version or tag from TOC
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+          BRANCH: ${{ github.ref_name }}
+          TOC: DownToDarkmoon.toc
+        run: bash .github/scripts/bump-version-from-toc.sh
+
+      - name: Summary
+        env:
+          BUMP: ${{ inputs.bump }}
+          OUT_VERSION: ${{ steps.bump.outputs.version }}
+          OUT_TAG: ${{ steps.bump.outputs.tag }}
+          OUT_PREVIOUS: ${{ steps.bump.outputs.previous }}
+        run: bash .github/scripts/bump-job-summary.sh
 
   package:
     needs: bump
@@ -68,8 +100,18 @@ jobs:
           github.actor != 'github-actions[bot]'
         )
       )
-    uses: ./.github/workflows/package-job.yml
-    with:
-      # After bump, default ref would still be pre-push SHA; checkout the new tag instead.
-      checkout_ref: ${{ github.event_name == 'workflow_dispatch' && needs.bump.outputs.tag || github.ref }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # After bump, default ref would still be pre-push SHA; checkout the new tag instead.
+          ref: ${{ github.event_name == 'workflow_dispatch' && needs.bump.outputs.tag || github.ref }}
+
+      - name: Package and publish
+        uses: BigWigsMods/packager@v2
