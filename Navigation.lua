@@ -166,13 +166,16 @@ local function buildWaypointAttempts(mapId, xPct, yPct)
   local y = yPct / 100
   local pm = C_Map.GetBestMapForUnit("player")
 
-  --- On the island, raw POI percentages usually match the active floor uiMap — try it before generic aliases.
+  --- Floor POI % only match that floor's uiMap. Orphan 407 % are a different chart than 408 — never copy raw 407
+  --- coords onto the player's floor (that was placing pins ~hundreds of meters off).
   if mapIdRefersToDarkmoonIsland(mapId) and pm and uiMapIsDarkmoonIslandFloor(pm) then
-    addUniqueAttempt(attempts, pm, x, y)
+    if uiMapIsDarkmoonIslandFloor(mapId) and mapId == pm then
+      addUniqueAttempt(attempts, pm, x, y)
+    end
   end
 
-  --- Dungeon floors for Darkmoon (408 + children of 407 from live data).
-  if mapId == DARKMOON_ORPHAN_MAP_ID or uiMapIsDarkmoonIslandFloor(mapId) then
+  --- Same coordinate system on every Darkmoon floor id only when POI was recorded on a floor map (e.g. 408), not 407.
+  if uiMapIsDarkmoonIslandFloor(mapId) then
     addDarkmoonFloorAliases(attempts, x, y)
   end
 
@@ -190,20 +193,17 @@ local function buildWaypointAttempts(mapId, xPct, yPct)
 
   addUniqueAttempt(attempts, mapId, x, y)
 
-  --- Always push raw normalized coords onto child maps (e.g. 407→408). World reprojection from Orphan maps is often nil.
+  --- Child uiMaps: use world reprojection only. Raw parent % on a child id are wrong for 407→408.
   if C_Map.GetMapChildrenInfo then
     local children = C_Map.GetMapChildrenInfo(mapId)
     if children then
       for _, c in ipairs(children) do
         local cid = c.mapID or c.mapId
-        if cid then
-          if continentID and worldPos then
-            local nx, ny = mapPctOnUiMap(continentID, worldPos, cid)
-            if nx and ny then
-              addUniqueAttempt(attempts, cid, nx, ny)
-            end
+        if cid and continentID and worldPos then
+          local nx, ny = mapPctOnUiMap(continentID, worldPos, cid)
+          if nx and ny then
+            addUniqueAttempt(attempts, cid, nx, ny)
           end
-          addUniqueAttempt(attempts, cid, x, y)
         end
       end
     end
@@ -320,36 +320,59 @@ function Navigation:SetWaypointPct(mapId, xPct, yPct, title)
   title = title or "Down to Darkmoon"
 
   local pm = C_Map.GetBestMapForUnit("player")
+  --- Blizzard user waypoints are unreliable on Darkmoon; TomTom-only while on the island.
+  local skipBlizzardPins = pm and mapIdRefersToDarkmoonIsland(pm) or false
+
   waypointDebug(("── SetWaypointPct ── %q"):format(title))
   waypointDebug(("  target: uiMap=%s  x%%=%.2f y%%=%.2f"):format(tostring(mapId), xPct, yPct))
   waypointDebug(("  player: BestMap=%s"):format(tostring(pm)))
   waypointDebugMapInfo(pm, "  player")
-  waypointDebug(
-    "  Note: CanSetUserWaypointOnMap is often false on Darkmoon; pins still use SetUserWaypoint + optional arrow via tracking."
-  )
+  if skipBlizzardPins then
+    waypointDebug("  On Darkmoon Island: skipping Blizzard user waypoints (TomTom only).")
+  end
 
   local attempts = buildWaypointAttempts(mapId, xPct, yPct)
+
+  --- TomTom-on-Darkmoon: try uiMap matching the player first so we never prefer orphan 407 raw when a
+  --- world-reprojected floor pin exists (TomTom uses the first AddWaypoint that succeeds).
+  if skipBlizzardPins and pm and mapIdRefersToDarkmoonIsland(pm) then
+    local onPlayerMap, other = {}, {}
+    for _, att in ipairs(attempts) do
+      if att[1] == pm then
+        onPlayerMap[#onPlayerMap + 1] = att
+      else
+        other[#other + 1] = att
+      end
+    end
+    for i = 1, #other do
+      onPlayerMap[#onPlayerMap + 1] = other[i]
+    end
+    attempts = onPlayerMap
+  end
 
   if C_Map.ClearUserWaypoint then
     pcall(C_Map.ClearUserWaypoint)
   end
 
-  --- Blizzard pin first, then TomTom (same order as Myu's Knowledge Points Tracker).
-  for _, att in ipairs(attempts) do
-    local mid, nx, ny = att[1], att[2], att[3]
-    nx = clamp01(nx)
-    ny = clamp01(ny)
-    if nx and ny then
-      if tryBlizzardPinOnce(mid, nx, ny) then
-        addTomTomWaypoint(mid, nx, ny, title)
-        waypointDebug(("  pin+TomTom | uiMap=%s"):format(tostring(mid)))
-        print(("|cfffeaa00Down to Darkmoon:|r Map pin — %s"):format(title))
-        return
+  --- Blizzard pin first, then TomTom (elsewhere; Myu's Knowledge Points Tracker order). On Darkmoon, TomTom only.
+  if not skipBlizzardPins then
+    for _, att in ipairs(attempts) do
+      local mid, nx, ny = att[1], att[2], att[3]
+      nx = clamp01(nx)
+      ny = clamp01(ny)
+      if nx and ny then
+        if tryBlizzardPinOnce(mid, nx, ny) then
+          addTomTomWaypoint(mid, nx, ny, title)
+          waypointDebug(("  pin+TomTom | uiMap=%s"):format(tostring(mid)))
+          print(("|cfffeaa00Down to Darkmoon:|r Map pin — %s"):format(title))
+          return
+        end
       end
     end
+    waypointDebug("  Blizzard pin failed for all candidates; trying TomTom-only…")
+  else
+    waypointDebug("  Trying TomTom-only…")
   end
-
-  waypointDebug("  Blizzard pin failed for all candidates; trying TomTom-only…")
   for _, att in ipairs(attempts) do
     local mid, nx, ny = att[1], att[2], att[3]
     nx = clamp01(nx)
@@ -362,11 +385,15 @@ function Navigation:SetWaypointPct(mapId, xPct, yPct, title)
   end
 
   print("|cfffeaa00Down to Darkmoon:|r Install TomTom for arrows, or open a zone map that allows pins.")
-  waypointDebug("SetWaypointPct: gave up (TomTom + Blizzard both failed)")
+  waypointDebug(
+    skipBlizzardPins and "SetWaypointPct: gave up (TomTom failed)"
+      or "SetWaypointPct: gave up (TomTom + Blizzard both failed)"
+  )
 end
 
-function Navigation:SetWaypointPOI(poiId)
-  local p = addon.Data.POIS[poiId]
+---@param profession string Key in `addon.Data.POIS` (quest `profession` / PROFESSION_SKILL_LINE name).
+function Navigation:SetWaypointPOI(profession)
+  local p = addon.Data.POIS[profession]
   if not p then
     return
   end

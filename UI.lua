@@ -35,11 +35,11 @@ local function colorCount(fs, have, need)
 end
 
 --- Darkmoon Island POI map % (Retail uiMap 408); shown when TomTom is absent so players can place pins manually.
-local function appendPoiCoordHint(text, poiId)
-  if not text or not poiId or addon.Navigation:IsTomTomLoaded() then
+local function appendPoiCoordHint(text, profession)
+  if not text or not profession or addon.Navigation:IsTomTomLoaded() then
     return text
   end
-  local p = addon.Data.POIS and addon.Data.POIS[poiId]
+  local p = addon.Data.POIS and addon.Data.POIS[profession]
   if not p or type(p.x) ~= "number" or type(p.y) ~= "number" then
     return text
   end
@@ -186,9 +186,9 @@ function UI:GetQuestRow(i)
         end
         return
       end
-      local pid = self.dtdPoiId
-      if pid then
-        addon.Navigation:SetWaypointPOI(pid)
+      local prof = self.dtdProfession
+      if prof then
+        addon.Navigation:SetWaypointPOI(prof)
       end
     end)
     qBtn:SetScript("OnEnter", function(self)
@@ -209,8 +209,8 @@ function UI:GetQuestRow(i)
         if addon.Navigation:IsTomTomLoaded() then
           GameTooltip:AddLine("Click: waypoint on Darkmoon Island.", 0.7, 0.9, 1)
         else
-          local pid = self.dtdPoiId
-          local p = pid and addon.Data.POIS and addon.Data.POIS[pid]
+          local prof = self.dtdProfession
+          local p = prof and addon.Data.POIS and addon.Data.POIS[prof]
           if p and type(p.x) == "number" and type(p.y) == "number" then
             GameTooltip:AddLine(
               ("Darkmoon map pin: |cffffffff%.1f, %.1f|r (install TomTom for arrows)."):format(
@@ -451,9 +451,8 @@ function UI:Refresh()
       row:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -y)
       row:Show()
       row.qBtn.qName = q.name
-      row.qBtn.poiId = q.poiId
       row.qBtn.dtdQuestId = q.questId
-      row.qBtn.dtdPoiId = q.poiId
+      row.qBtn.dtdProfession = q.profession
       row.qBtn.dtdSkillLineId = q.skillLineId
       addon:SetProfessionIconTexture(row.qBtn.profIcon, q.skillLineId)
 
@@ -470,16 +469,16 @@ function UI:Refresh()
       end
       if ignored then
         if completed then
-          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " - completed (ignored)|r", q.poiId))
+          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " - completed (ignored)|r", q.profession))
         else
-          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " (ignored)|r", q.poiId))
+          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " (ignored)|r", q.profession))
         end
       elseif completed then
-        row.qBtn.qtext:SetText(appendPoiCoordHint("|cff33ff33" .. q.name .. " - completed|r", q.poiId))
+        row.qBtn.qtext:SetText(appendPoiCoordHint("|cff33ff33" .. q.name .. " - completed|r", q.profession))
       elseif C_QuestLog.IsOnQuest(q.questId) then
-        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name, q.poiId))
+        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name, q.profession))
       else
-        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name .. " |cffff5555(not on quest)|r", q.poiId))
+        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name .. " |cffff5555(not on quest)|r", q.profession))
       end
 
       y = y + QUEST_ROW_H + ROW_GAP

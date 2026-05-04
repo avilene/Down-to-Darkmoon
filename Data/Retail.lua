@@ -1,5 +1,23 @@
--- Profession quest IDs/names: Wowhead retail (e.g. /quest=29506 for A Fizzy Fusion). Shopping/vendor coords may need patch updates.
--- uiMapID: Elwynn Forest=37, Stormwind City=84, Orgrimmar=85. Darkmoon floor ids come from live map data (408 + GetMapChildrenInfo(407)). Orphan overview=407. x,y are 0-100 map percentages on that uiMap.
+-- Profession quest IDs/names: Wowhead retail. Shopping/vendor coords may need patch updates.
+-- uiMapID: Elwynn Forest=37, Stormwind City=84, Orgrimmar=85, Darkmoon Island=407 (orphan overview). x,y are 0-100 map % on that uiMap.
+--
+-- Quest → hand-in NPC → POIS[profession] (keys match `profession` on each quest; island % on uiMap 407):
+--  questId  quest name                        NPC (Wowhead)                    profession   407 x, y   notes
+--  29506    A Fizzy Fusion                    Sylannia (npc=14844)            alchemy      50.5, 69.8
+--  29507    Fun for the Little Ones         Professor Paleo (npc=14847)     archaeology  51.8, 60.8
+--  29508    Baby Needs Two Pair of Shoes    Yebb Neblegear (npc=14829)      blacksmithing 51.3, 28.0  zoo / horseshoe area
+--  29509    Putting the Crunch in the Frog   Stamp Thunderhorn (npc=14845)   cooking      52.9, 68.0  food pavilion
+--  29510    Putting Trash to Good Use       Sayge (npc=14822)               enchanting   53.0, 75.5  fortune booth / enchanting
+--  29511    Talkin' Tonks                     Rinling (npc=14841)             engineering  55.6, 56.4  same stall cluster as LW/mining
+--  29513    Spoilin' for Salty Sea Dogs     Stamp Thunderhorn (npc=14845)   fishing      52.9, 68.0  same coords as cooking (one NPC)
+--  29514    Herbs for Healing                Chronos (npc=14833)             herbalism    55.0, 70.6
+--  29515    Writing the Future               Sayge (npc=14822)               inscription  53.0, 75.5  same NPC as enchanting daily
+--  29516    Keeping the Faire Sparkling       Chronos (npc=14833)             jewelcrafting 55.0, 70.6
+--  29517    Eyes on the Prizes                Rinling (npc=14841)             leatherworking 55.6, 56.4
+--  29518    Rearm, Reuse, Recycle            Rinling (npc=14841)             mining       55.6, 56.4
+--  29519    Tan My Hide                       Chronos (npc=14833)             skinning     55.0, 70.6
+--  29520    Banners, Banners Everywhere!     Selina Dourman (npc=10445)      tailoring    55.8, 55.8
+-- See: https://www.wowhead.com/quest=29506 (…replace id) for each quest.
 
 local _, addon = ...
 
@@ -8,7 +26,6 @@ local _, addon = ...
 ---@field name string
 ---@field profession string
 ---@field skillLineId number
----@field poiId string
 ---@field requiredStacks { itemKey: string, count: number }[]
 
 ---@class ItemDef
@@ -43,7 +60,8 @@ local ITEMS = {
     vendors = {
       --- Innkeeper Farley sells Moonberry Juice; coords Wowpedia npc 295 (Lion's Pride Inn, Goldshire).
       { mapId = 37, x = 43.8, y = 65.9, label = "Innkeeper Farley — Lion's Pride Inn (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 39.0, y = 48.2, label = "Valley of Strength inn & general goods", faction = "Horde" },
+      --- Innkeeper Gryshka — The Broken Tusk; Valley of Strength near main gate (Moonberry from inn, not general goods).
+      { mapId = 85, x = 53.6, y = 78.8, label = "Innkeeper Gryshka — The Broken Tusk (Valley of Strength)", faction = "Horde" },
     },
   },
   fizzy_faire_drink = {
@@ -51,7 +69,7 @@ local ITEMS = {
     itemId = 19299,
     name = "Fizzy Faire Drink",
     vendors = {
-      { mapId = 408, x = 50.5, y = 69.8, label = "Sylannia (Darkmoon Island)", faction = "Any" },
+      { mapId = 407, x = 50.5, y = 69.8, label = "Sylannia (alchemy)", faction = "Any" },
     },
   },
   simple_flour = {
@@ -61,7 +79,7 @@ local ITEMS = {
     vendors = {
       --- Quest text: Elwynn/Mulgore vendors; Tharynn Bouden trade supplies — Wowpedia npc 66 [41.9, 67.1] on Elwynn map.
       { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 47.2, y = 46.6, label = "Cooking / trade goods (Orgrimmar)", faction = "Horde" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   light_parchment = {
@@ -70,7 +88,7 @@ local ITEMS = {
     name = "Light Parchment",
     vendors = {
       { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 47.0, y = 47.2, label = "Trade goods (Orgrimmar)", faction = "Horde" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   shiny_bauble = {
@@ -88,7 +106,7 @@ local ITEMS = {
     name = "Coarse Thread",
     vendors = {
       { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 46.8, y = 46.8, label = "Tailoring / trade goods (Orgrimmar)", faction = "Horde" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   blue_dye = {
@@ -97,7 +115,7 @@ local ITEMS = {
     name = "Blue Dye",
     vendors = {
       { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 46.8, y = 46.8, label = "Tailoring / trade goods (Orgrimmar)", faction = "Horde" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   red_dye = {
@@ -106,7 +124,7 @@ local ITEMS = {
     name = "Red Dye",
     vendors = {
       { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 46.8, y = 46.8, label = "Tailoring / trade goods (Orgrimmar)", faction = "Horde" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
 }
@@ -117,9 +135,8 @@ local QUESTS = {
     name = "A Fizzy Fusion",
     profession = "alchemy",
     skillLineId = PROFESSION_SKILL_LINE.alchemy,
-    poiId = "dm_sylannia",
     requiredStacks = {
-      { itemKey = "moonberry_juice", count = 5 },
+      { itemKey = "moonberry_juice",   count = 5 },
       { itemKey = "fizzy_faire_drink", count = 5 },
     },
   },
@@ -128,7 +145,6 @@ local QUESTS = {
     name = "Fun for the Little Ones",
     profession = "archaeology",
     skillLineId = PROFESSION_SKILL_LINE.archaeology,
-    poiId = "dm_archaeology",
     requiredStacks = {},
   },
   {
@@ -136,7 +152,6 @@ local QUESTS = {
     name = "Baby Needs Two Pair of Shoes",
     profession = "blacksmithing",
     skillLineId = PROFESSION_SKILL_LINE.blacksmithing,
-    poiId = "dm_yebb",
     requiredStacks = {},
   },
   {
@@ -144,7 +159,6 @@ local QUESTS = {
     name = "Putting the Crunch in the Frog",
     profession = "cooking",
     skillLineId = PROFESSION_SKILL_LINE.cooking,
-    poiId = "dm_stamp",
     requiredStacks = { { itemKey = "simple_flour", count = 5 } },
   },
   {
@@ -152,7 +166,6 @@ local QUESTS = {
     name = "Putting Trash to Good Use",
     profession = "enchanting",
     skillLineId = PROFESSION_SKILL_LINE.enchanting,
-    poiId = "dm_enchanting",
     requiredStacks = {},
   },
   {
@@ -160,7 +173,6 @@ local QUESTS = {
     name = "Talkin' Tonks",
     profession = "engineering",
     skillLineId = PROFESSION_SKILL_LINE.engineering,
-    poiId = "dm_tonks",
     requiredStacks = {},
   },
   {
@@ -168,7 +180,6 @@ local QUESTS = {
     name = "Spoilin' for Salty Sea Dogs",
     profession = "fishing",
     skillLineId = PROFESSION_SKILL_LINE.fishing,
-    poiId = "dm_fishing",
     requiredStacks = {},
   },
   {
@@ -176,7 +187,6 @@ local QUESTS = {
     name = "Herbs for Healing",
     profession = "herbalism",
     skillLineId = PROFESSION_SKILL_LINE.herbalism,
-    poiId = "dm_herbalism",
     requiredStacks = {},
   },
   {
@@ -184,7 +194,6 @@ local QUESTS = {
     name = "Writing the Future",
     profession = "inscription",
     skillLineId = PROFESSION_SKILL_LINE.inscription,
-    poiId = "dm_inscription",
     requiredStacks = { { itemKey = "light_parchment", count = 5 } },
   },
   {
@@ -192,7 +201,6 @@ local QUESTS = {
     name = "Keeping the Faire Sparkling",
     profession = "jewelcrafting",
     skillLineId = PROFESSION_SKILL_LINE.jewelcrafting,
-    poiId = "dm_jc",
     requiredStacks = {},
   },
   {
@@ -200,11 +208,10 @@ local QUESTS = {
     name = "Eyes on the Prizes",
     profession = "leatherworking",
     skillLineId = PROFESSION_SKILL_LINE.leatherworking,
-    poiId = "dm_lw",
     requiredStacks = {
-      { itemKey = "shiny_bauble", count = 10 },
+      { itemKey = "shiny_bauble",  count = 10 },
       { itemKey = "coarse_thread", count = 5 },
-      { itemKey = "blue_dye", count = 5 },
+      { itemKey = "blue_dye",      count = 5 },
     },
   },
   {
@@ -212,7 +219,6 @@ local QUESTS = {
     name = "Rearm, Reuse, Recycle",
     profession = "mining",
     skillLineId = PROFESSION_SKILL_LINE.mining,
-    poiId = "dm_mining",
     requiredStacks = {},
   },
   {
@@ -220,7 +226,6 @@ local QUESTS = {
     name = "Tan My Hide",
     profession = "skinning",
     skillLineId = PROFESSION_SKILL_LINE.skinning,
-    poiId = "dm_skinning",
     requiredStacks = {},
   },
   {
@@ -228,30 +233,31 @@ local QUESTS = {
     name = "Banners, Banners Everywhere!",
     profession = "tailoring",
     skillLineId = PROFESSION_SKILL_LINE.tailoring,
-    poiId = "dm_tailor",
     requiredStacks = {
       { itemKey = "coarse_thread", count = 1 },
-      { itemKey = "red_dye", count = 1 },
-      { itemKey = "blue_dye", count = 1 },
+      { itemKey = "red_dye",       count = 1 },
+      { itemKey = "blue_dye",      count = 1 },
     },
   },
 }
 
+--- Keys match each quest's `profession` string (PROFESSION_SKILL_LINE names).
 local POIS = {
-  dm_sylannia = { mapId = 408, x = 50.5, y = 69.8, label = "Sylannia (drinks / alchemy)" },
-  dm_stamp = { mapId = 408, x = 52.9, y = 68.0, label = "Stamp Thunderhorn (cooking)" },
-  dm_yebb = { mapId = 408, x = 51.3, y = 28.0, label = "Yebb Neblegear (blacksmithing)" },
-  dm_archaeology = { mapId = 408, x = 51.8, y = 60.8, label = "Professor Paleo (archaeology)" },
-  dm_enchanting = { mapId = 408, x = 53.0, y = 75.5, label = "Sayge (enchanting quest)" },
-  dm_tonks = { mapId = 408, x = 56.2, y = 53.8, label = "Tonk arena (engineering)" },
-  dm_fishing = { mapId = 408, x = 52.6, y = 88.4, label = "Shipwreck fishing pool" },
-  dm_herbalism = { mapId = 408, x = 49.5, y = 56.5, label = "Herbalism (sparkling herbs)" },
-  dm_inscription = { mapId = 408, x = 53.0, y = 75.5, label = "Inscription (near Sayge)" },
-  dm_jc = { mapId = 408, x = 55.0, y = 70.8, label = "Jewelcrafting tent" },
-  dm_lw = { mapId = 408, x = 55.6, y = 56.4, label = "Leatherworking tent" },
-  dm_mining = { mapId = 408, x = 49.0, y = 50.0, label = "Tonk scrap (mining)" },
-  dm_skinning = { mapId = 408, x = 55.2, y = 70.4, label = "Skinning area" },
-  dm_tailor = { mapId = 408, x = 55.8, y = 55.8, label = "Tailoring tent" },
+  alchemy = { mapId = 407, x = 50.5, y = 69.8, label = "Sylannia (alchemy)" },
+  archaeology = { mapId = 407, x = 51.8, y = 60.8, label = "Professor Paleo (archaeology)" },
+  blacksmithing = { mapId = 407, x = 51.3, y = 28.0, label = "Yebb Neblegear (blacksmithing)" },
+  cooking = { mapId = 407, x = 52.9, y = 68.0, label = "Stamp Thunderhorn (cooking)" },
+  enchanting = { mapId = 407, x = 53.0, y = 75.5, label = "Sayge (enchanting)" },
+  engineering = { mapId = 407, x = 55.6, y = 56.4, label = "Rinling (engineering)" },
+  --- Same world NPC as `cooking` (quests 29513 / 29509); coords must match.
+  fishing = { mapId = 407, x = 52.9, y = 68.0, label = "Stamp Thunderhorn (fishing)" },
+  herbalism = { mapId = 407, x = 55.0, y = 70.6, label = "Chronos (herbalism)" },
+  inscription = { mapId = 407, x = 53.0, y = 75.5, label = "Sayge (inscription)" },
+  jewelcrafting = { mapId = 407, x = 55.0, y = 70.6, label = "Chronos (jewelcrafting)" },
+  leatherworking = { mapId = 407, x = 55.6, y = 56.4, label = "Rinling (leatherworking)" },
+  mining = { mapId = 407, x = 55.6, y = 56.4, label = "Rinling (mining)" },
+  skinning = { mapId = 407, x = 55.0, y = 70.6, label = "Chronos (skinning)" },
+  tailoring = { mapId = 407, x = 55.8, y = 55.8, label = "Selina Dourman (tailoring)" },
 }
 
 addon.Data = {
