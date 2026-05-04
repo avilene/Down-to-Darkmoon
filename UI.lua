@@ -25,6 +25,9 @@ local ACTION_BTN_H = 20
 local ACTION_BTN_GAP = 4
 --- Right margin + Buy + gap + Pull (matches anchors below).
 local ITEM_ACTION_BAR_OFFSET = 2 + ACTION_BTN_W + ACTION_BTN_GAP + ACTION_BTN_W
+--- Square secure item button (Lucky's Grab-bag style: SecureActionButtonTemplate + `type=item` + bag item name).
+local QUEST_USE_BTN_SIZE = ITEM_ROW_H - 2
+local QUEST_USE_ACTION_OFFSET = 2 + QUEST_USE_BTN_SIZE
 
 local function colorCount(fs, have, need)
   if have >= need then
@@ -138,6 +141,7 @@ function UI:CreateMainFrame()
   self.poolQuest = {}
   self.poolObjective = {}
   self.poolItem = {}
+  self.poolQuestUseItem = {}
   self.poolEmpty = nil
 
   local allDoneBanner = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -373,6 +377,86 @@ function UI:GetItemRow(i)
   return irow
 end
 
+function UI:GetQuestUseItemRow(i)
+  local urow = self.poolQuestUseItem[i]
+  if not urow then
+    urow = CreateFrame("Frame", nil, self.content)
+    urow:SetSize(CONTENT_W - 10, ITEM_ROW_H)
+
+    local strip = urow:CreateTexture(nil, "BACKGROUND")
+    strip:SetAllPoints()
+    strip:SetColorTexture(0.07, 0.09, 0.12, 0.45)
+
+    local bg = CreateFrame("Frame", nil, urow)
+    bg:SetPoint("LEFT", urow, "LEFT", 0, 0)
+    bg:SetPoint("RIGHT", urow, "RIGHT", -QUEST_USE_ACTION_OFFSET, 0)
+    bg:SetHeight(ITEM_ROW_H)
+    urow.bg = bg
+
+    local icon = bg:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(18, 18)
+    icon:SetPoint("LEFT", 4, 0)
+    urow.icon = icon
+
+    local nameFs = bg:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    nameFs:SetPoint("LEFT", icon, "RIGHT", 5, 0)
+    nameFs:SetPoint("RIGHT", bg, "RIGHT", -52, 0)
+    nameFs:SetJustifyH("LEFT")
+    nameFs:SetTextColor(COLOR_ITEM_NAME[1], COLOR_ITEM_NAME[2], COLOR_ITEM_NAME[3])
+    urow.nameFs = nameFs
+
+    local cntFs = bg:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    cntFs:SetPoint("RIGHT", bg, "RIGHT", -2, 0)
+    cntFs:SetJustifyH("RIGHT")
+    urow.cntFs = cntFs
+
+    --- InsecureActionButtonTemplate: secure `type=item` clicks + addon may SetAttribute from tainted Refresh (Lucky's Grab-bag uses plain SecureActionButtonTemplate + item name from bags).
+    local useBtn = CreateFrame("Button", nil, urow, "InsecureActionButtonTemplate")
+    useBtn:SetSize(QUEST_USE_BTN_SIZE, QUEST_USE_BTN_SIZE)
+    useBtn:SetPoint("RIGHT", urow, "RIGHT", -2, 0)
+    useBtn:SetFrameLevel(20)
+    useBtn:RegisterForClicks("AnyDown", "AnyUp")
+
+    local ubIcon = useBtn:CreateTexture(nil, "ARTWORK")
+    ubIcon:SetAllPoints()
+    ubIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    useBtn.iconTex = ubIcon
+
+    local ubHi = useBtn:CreateTexture(nil, "HIGHLIGHT")
+    ubHi:SetAllPoints()
+    ubHi:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    ubHi:SetBlendMode("ADD")
+
+    local ubLab = useBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    ubLab:SetPoint("BOTTOM", 0, 1)
+    ubLab:SetText("Use")
+    ubLab:SetAlpha(0.85)
+    useBtn.useLabel = ubLab
+
+    useBtn:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+      GameTooltip:AddLine("Use quest item", 1, 0.95, 0.7)
+      if InCombatLockdown() then
+        GameTooltip:AddLine("Unavailable in combat (try again out of combat).", 1, 0.35, 0.35, true)
+      else
+        GameTooltip:AddLine(
+          "Uses the item in your bags.",
+          0.85,
+          0.85,
+          0.9,
+          true
+        )
+      end
+      GameTooltip:Show()
+    end)
+    useBtn:SetScript("OnLeave", GameTooltip_Hide)
+    urow.useBtn = useBtn
+
+    self.poolQuestUseItem[i] = urow
+  end
+  return urow
+end
+
 function UI:GetEmptyRow()
   if not self.poolEmpty then
     self.poolEmpty = CreateFrame("Frame", nil, self.content)
@@ -385,7 +469,7 @@ function UI:GetEmptyRow()
   return self.poolEmpty
 end
 
-function UI:TrimPools(nQuest, nObjective, nItem, usedEmpty)
+function UI:TrimPools(nQuest, nObjective, nItem, nQuestUse, usedEmpty)
   for i = nQuest + 1, #self.poolQuest do
     self.poolQuest[i]:Hide()
   end
@@ -394,6 +478,9 @@ function UI:TrimPools(nQuest, nObjective, nItem, usedEmpty)
   end
   for i = nItem + 1, #self.poolItem do
     self.poolItem[i]:Hide()
+  end
+  for i = nQuestUse + 1, #self.poolQuestUseItem do
+    self.poolQuestUseItem[i]:Hide()
   end
   if self.poolEmpty then
     self.poolEmpty:SetShown(usedEmpty)
@@ -410,7 +497,7 @@ function UI:Refresh()
     if addon.Calendar._hasRefreshedStateOnce and addon._inactiveBootFrozen then
       return
     end
-    self:TrimPools(0, 0, 0, false)
+    self:TrimPools(0, 0, 0, 0, false)
     if self.poolEmpty then
       self.poolEmpty:Hide()
     end
@@ -438,7 +525,7 @@ function UI:Refresh()
   self.content:Show()
 
   local y = 0
-  local qi, oi, ii = 0, 0, 0
+  local qi, oi, ii, ui = 0, 0, 0, 0
   local skill = addon:PlayerSkillLineSet()
   local any = false
 
@@ -499,6 +586,52 @@ function UI:Refresh()
           end
           orow:Show()
           y = y + OBJECTIVE_ROW_H + ROW_GAP
+        end
+      end
+
+      if q.useQuestItems and addon:ShouldShowQuestUseItemRows(q.questId, ignored, completed) then
+        for _, udef in ipairs(q.useQuestItems) do
+          local itemId = udef.itemId
+          if itemId then
+            local have = addon:GetItemCountCompat(itemId)
+            local matches = addon:QuestLogSpecialItemMatchesItemId(q.questId, itemId)
+            local bagName, bagIcon = addon:GetBagSlotDisplayForItemId(itemId)
+            if have > 0 and matches and bagName then
+              ui = ui + 1
+              local urow = self:GetQuestUseItemRow(ui)
+              urow:ClearAllPoints()
+              urow:SetPoint("TOPLEFT", self.content, "TOPLEFT", 10, -y)
+              urow:Show()
+
+              local name = addon:GetItemNameByIDCompat(itemId) or ("Item " .. tostring(itemId))
+              urow.nameFs:SetText(name)
+              addon:SetItemIconTexture(urow.icon, itemId)
+              urow.cntFs:SetText(("%d in bags"):format(have))
+              urow.cntFs:SetTextColor(0.65, 0.85, 1)
+
+              local combat = InCombatLockdown()
+              local ub = urow.useBtn
+              ub.dtdQuestId = q.questId
+              ub.dtdItemId = itemId
+              if not combat then
+                ub:SetAttribute("type", nil)
+                ub:SetAttribute("item", nil)
+                ub:SetAttribute("type", "item")
+                ub:SetAttribute("item", bagName)
+              end
+              if bagIcon and type(bagIcon) == "number" then
+                ub.iconTex:SetTexture(bagIcon)
+              else
+                addon:SetItemIconTexture(ub.iconTex, itemId)
+              end
+              ub.iconTex:SetAlpha(1)
+              if ub.useLabel then
+                ub.useLabel:SetAlpha(0.85)
+              end
+
+              y = y + ITEM_ROW_H + ROW_GAP
+            end
+          end
         end
       end
 
@@ -601,7 +734,7 @@ function UI:Refresh()
     end
   end
 
-  self:TrimPools(qi, oi, ii, usedEmpty)
+  self:TrimPools(qi, oi, ii, ui, usedEmpty)
   local bodyH = math.max(y + 16, 1)
   self.content:SetHeight(bodyH)
   self.mainFrame:SetHeight(PAD + TITLE_H + GAP_TITLE_TO_BODY + bodyH + FRAME_BOTTOM_PAD)

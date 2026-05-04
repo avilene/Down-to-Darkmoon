@@ -28,6 +28,8 @@ local _, addon = ...
 ---@field profession string
 ---@field skillLineId number
 ---@field requiredStacks { itemKey: string, count: number }[]
+---@field useQuestItems { itemId: number }[]?  -- panel: SecureActionButton `type=item` + bag `itemName` (Lucky's Grab-bag style)
+---@field hideRequiredStacksWhenHaveItemIds number[]?  -- hide vendor "reagents needed" rows when any of these crafted/processed items are in bags
 
 ---@class ItemDef
 ---@field key string
@@ -139,6 +141,12 @@ local QUESTS = {
     name = "A Fizzy Fusion",
     profession = "alchemy",
     skillLineId = PROFESSION_SKILL_LINE.alchemy,
+    --- Cocktail Shaker (Wowhead item=72043): Use to mix drinks for the quest objective.
+    useQuestItems = {
+      { itemId = 72043 },
+    },
+    --- Moonberry Fizz (72044): crafted in the shaker from vendor juices; no need to show those rows once you have fizz.
+    hideRequiredStacksWhenHaveItemIds = { 72044 },
     requiredStacks = {
       { itemKey = "moonberry_juice",   count = 5 },
       { itemKey = "fizzy_faire_drink", count = 5 },
@@ -149,6 +157,7 @@ local QUESTS = {
     name = "Fun for the Little Ones",
     profession = "archaeology",
     skillLineId = PROFESSION_SKILL_LINE.archaeology,
+    --- No useQuestItems: 15× Fossil Archaeology Fragment is archaeology currency, not a bag item.
     requiredStacks = {},
   },
   {
@@ -156,6 +165,11 @@ local QUESTS = {
     name = "Baby Needs Two Pair of Shoes",
     profession = "blacksmithing",
     skillLineId = PROFESSION_SKILL_LINE.blacksmithing,
+    --- Iron Stock (71964) at the anvil for Horseshoes; Horseshoe (71967) to apply to Baby (Wowhead quest/related items).
+    useQuestItems = {
+      { itemId = 71964 },
+      { itemId = 71967 },
+    },
     requiredStacks = {},
   },
   {
@@ -163,6 +177,12 @@ local QUESTS = {
     name = "Putting the Crunch in the Frog",
     profession = "cooking",
     skillLineId = PROFESSION_SKILL_LINE.cooking,
+    --- Plump Frogs (72056) + flour → Breaded Frog (72057); breaded → fry at cauldron (Wowhead 29509 / item pages).
+    useQuestItems = {
+      { itemId = 72056 },
+      { itemId = 72057 },
+    },
+    hideRequiredStacksWhenHaveItemIds = { 72057 },
     requiredStacks = { { itemKey = "simple_flour", count = 5 } },
   },
   {
@@ -170,6 +190,10 @@ local QUESTS = {
     name = "Putting Trash to Good Use",
     profession = "enchanting",
     skillLineId = PROFESSION_SKILL_LINE.enchanting,
+    --- Discarded Weapon (Wowhead item=72018): Use in bags for Soothsayer's Dust (same as right-click).
+    useQuestItems = {
+      { itemId = 72018 },
+    },
     requiredStacks = {},
   },
   {
@@ -177,6 +201,10 @@ local QUESTS = {
     name = "Talkin' Tonks",
     profession = "engineering",
     skillLineId = PROFESSION_SKILL_LINE.engineering,
+    --- Battered Wrench (Wowhead item=72110): use on Damaged Steam Tonks on the fairgrounds.
+    useQuestItems = {
+      { itemId = 72110 },
+    },
     requiredStacks = {},
   },
   {
@@ -184,6 +212,7 @@ local QUESTS = {
     name = "Spoilin' for Salty Sea Dogs",
     profession = "fishing",
     skillLineId = PROFESSION_SKILL_LINE.fishing,
+    --- No useQuestItems: catch Great Sea Herring in the sea around the island (fishing cast only).
     requiredStacks = {},
   },
   {
@@ -191,6 +220,7 @@ local QUESTS = {
     name = "Herbs for Healing",
     profession = "herbalism",
     skillLineId = PROFESSION_SKILL_LINE.herbalism,
+    --- No useQuestItems: Darkblossom (e.g. item=72046) is gathered from nodes on the island, not a quest gadget.
     requiredStacks = {},
   },
   {
@@ -198,6 +228,13 @@ local QUESTS = {
     name = "Writing the Future",
     profession = "inscription",
     skillLineId = PROFESSION_SKILL_LINE.inscription,
+    --- Bundle of Exotic Herbs (71971) → Prophetic Ink (71972) + Light Parchment → fortunes (Wowhead 29515 / item pages).
+    useQuestItems = {
+      { itemId = 71971 },
+      { itemId = 71972 },
+    },
+    --- Sayge's Fortunes (71974): once you have crafted fortunes, vendor parchment row is unnecessary.
+    hideRequiredStacksWhenHaveItemIds = { 71974 },
     requiredStacks = { { itemKey = "light_parchment", count = 5 } },
   },
   {
@@ -205,6 +242,11 @@ local QUESTS = {
     name = "Keeping the Faire Sparkling",
     profession = "jewelcrafting",
     skillLineId = PROFESSION_SKILL_LINE.jewelcrafting,
+    --- Bit of Glass (72052) then Sparkling 'Gemstone' (72050); use in bags to progress before hand-in (Wowhead 29516 / items).
+    useQuestItems = {
+      { itemId = 72052 },
+      { itemId = 72050 },
+    },
     requiredStacks = {},
   },
   {
@@ -212,6 +254,11 @@ local QUESTS = {
     name = "Eyes on the Prizes",
     profession = "leatherworking",
     skillLineId = PROFESSION_SKILL_LINE.leatherworking,
+    --- Darkmoon Craftsman's Kit (Wowhead item=71977) to craft Darkmoon Prizes with the vendor mats.
+    useQuestItems = {
+      { itemId = 71977 },
+    },
+    hideRequiredStacksWhenHaveItemIds = { 71976 },
     requiredStacks = {
       { itemKey = "shiny_bauble",  count = 10 },
       { itemKey = "coarse_thread", count = 5 },
@@ -223,6 +270,7 @@ local QUESTS = {
     name = "Rearm, Reuse, Recycle",
     profession = "mining",
     skillLineId = PROFESSION_SKILL_LINE.mining,
+    --- No useQuestItems: Tonk Scrap (item=71968) is looted from piles on the ground, not a provided usable tool.
     requiredStacks = {},
   },
   {
@@ -230,6 +278,7 @@ local QUESTS = {
     name = "Tan My Hide",
     profession = "skinning",
     skillLineId = PROFESSION_SKILL_LINE.skinning,
+    --- No useQuestItems: Staked Skin is a world object (Wowhead object=209276), scraped in place.
     requiredStacks = {},
   },
   {
@@ -237,6 +286,11 @@ local QUESTS = {
     name = "Banners, Banners Everywhere!",
     profession = "tailoring",
     skillLineId = PROFESSION_SKILL_LINE.tailoring,
+    --- Darkmoon Banner Kit (Wowhead item=72048) with dyes/thread; place banner on Loose Stones (Wowhead 29520).
+    useQuestItems = {
+      { itemId = 72048 },
+    },
+    hideRequiredStacksWhenHaveItemIds = { 72049 },
     requiredStacks = {
       { itemKey = "coarse_thread", count = 1 },
       { itemKey = "red_dye",       count = 1 },

@@ -119,6 +119,104 @@ function addon:SetItemIconTexture(texture, itemId)
   end
 end
 
+--- Localized item name for secure `item` actions (best effort; may be nil until the client caches the item).
+function addon:GetItemNameByIDCompat(itemId)
+  if not itemId then
+    return nil
+  end
+  if C_Item and type(C_Item.GetItemNameByID) == "function" then
+    local n = C_Item.GetItemNameByID(itemId)
+    if type(n) == "string" and n ~= "" then
+      return n
+    end
+  end
+  if type(GetItemInfo) == "function" then
+    local name = select(1, GetItemInfo(itemId))
+    if type(name) == "string" and name ~= "" then
+      return name
+    end
+  end
+  return nil
+end
+
+--- Item id from an item hyperlink (quest log / merchant links).
+function addon:GetItemIdFromHyperlink(link)
+  if type(link) ~= "string" then
+    return nil
+  end
+  return tonumber(link:match("Hitem:(%d+)") or link:match("item:(%d+)"))
+end
+
+--- Item id for the quest's tracker special-item slot (same as the icon beside the objective tracker entry).
+function addon:GetQuestLogSpecialItemIdForQuest(questId)
+  if not questId or not C_QuestLog or type(C_QuestLog.GetLogIndexForQuestID) ~= "function" then
+    return nil
+  end
+  if type(GetQuestLogSpecialItemInfo) ~= "function" then
+    return nil
+  end
+  local logIndex = C_QuestLog.GetLogIndexForQuestID(questId)
+  if not logIndex then
+    return nil
+  end
+  local ok, link = pcall(function()
+    return (select(1, GetQuestLogSpecialItemInfo(logIndex)))
+  end)
+  if not ok or type(link) ~= "string" or link == "" then
+    return nil
+  end
+  return self:GetItemIdFromHyperlink(link)
+end
+
+--- Whether this row's item matches what the tracker would use (when the API reports it).
+function addon:QuestLogSpecialItemMatchesItemId(questId, itemId)
+  if not itemId then
+    return false
+  end
+  local sid = self:GetQuestLogSpecialItemIdForQuest(questId)
+  if not sid then
+    return true
+  end
+  return sid == itemId
+end
+
+--- Localized name (+ optional icon) from a real bag stack.
+--- Lucky's Grab-bag UseItems.lua uses `SetAttribute("item", item.itemName)` from `C_Container.GetContainerItemInfo` — same requirement for SecureActionButton `type=item`.
+function addon:GetBagSlotDisplayForItemId(itemId)
+  if not itemId or not C_Container or type(C_Container.GetContainerNumSlots) ~= "function" or type(C_Container.GetContainerItemInfo) ~= "function" then
+    return nil, nil
+  end
+  local maxBag = type(NUM_BAG_SLOTS) == "number" and NUM_BAG_SLOTS or 4
+  for bag = 0, maxBag do
+    local numSlots = C_Container.GetContainerNumSlots(bag)
+    if type(numSlots) == "number" and numSlots > 0 then
+      for slot = 1, numSlots do
+        local info = C_Container.GetContainerItemInfo(bag, slot)
+        if info and info.itemID == itemId then
+          local name = info.itemName
+          if type(name) ~= "string" or name == "" then
+            if C_Item and type(C_Item.GetItemNameByID) == "function" then
+              local ok, n = pcall(C_Item.GetItemNameByID, itemId)
+              if ok and type(n) == "string" and n ~= "" then
+                name = n
+              end
+            end
+          end
+          local icon = info.iconFileID
+          if type(name) == "string" and name ~= "" then
+            return name, icon
+          end
+          return nil, icon
+        end
+      end
+    end
+  end
+  if C_Item and type(C_Item.RequestLoadItemDataByID) == "function" then
+    pcall(C_Item.RequestLoadItemDataByID, itemId)
+  end
+  return nil, nil
+end
+
 --- Fallback trade-skill icons by TradeSkillLineID (matches Data/Retail.lua) when C_TradeSkillUI / GetProfessionInfo fail.
 local FALLBACK_PROFESSION_TEXTURE = {
   [171] = "Interface\\Icons\\Trade_Alchemy",
@@ -235,6 +333,30 @@ function addon:IsProfessionQuestCompleted(questId)
   return false
 end
 
+function addon:GetProfessionQuestDef(questId)
+  if not questId or not self.Data or not self.Data.QUESTS then
+    return nil
+  end
+  for _, q in ipairs(self.Data.QUESTS) do
+    if q.questId == questId then
+      return q
+    end
+  end
+  return nil
+end
+
+--- Panel rows for `useQuestItems`: only while on the quest (not merely unlocked), not ignored, not completed.
+function addon:ShouldShowQuestUseItemRows(questId, ignored, completed)
+  if not questId or completed or ignored then
+    return false
+  end
+  if not C_QuestLog or type(C_QuestLog.IsOnQuest) ~= "function" then
+    return false
+  end
+  local ok, onQuest = pcall(C_QuestLog.IsOnQuest, questId)
+  return ok and onQuest == true
+end
+
 --- Objective lines from the quest log API (same text/progress as the default tracker).
 function addon:GetQuestObjectiveEntries(questId)
   if not questId or not C_QuestLog or type(C_QuestLog.IsOnQuest) ~= "function" or not C_QuestLog.IsOnQuest(questId) then
@@ -265,13 +387,22 @@ function addon:GetQuestObjectiveEntries(questId)
   return out
 end
 
---- Hide vendor/shopping rows when mats are satisfied or the quest has moved on (e.g. crafted Crunchy Frogs).
+--- Hide vendor/shopping rows when mats are satisfied, the quest has moved on (e.g. crafted Crunchy Frogs),
+--- or the player already holds a later-stage item from `Data/Retail.lua` `hideRequiredStacksWhenHaveItemIds`.
 function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
   if not questId or not itemId or not need then
     return true
   end
   if self:IsProfessionQuestIgnored(questId) then
     return false
+  end
+  local qdef = self:GetProfessionQuestDef(questId)
+  if qdef and type(qdef.hideRequiredStacksWhenHaveItemIds) == "table" then
+    for _, uid in ipairs(qdef.hideRequiredStacksWhenHaveItemIds) do
+      if type(uid) == "number" and self:GetItemCountCompat(uid) > 0 then
+        return false
+      end
+    end
   end
   local still = self.QuantityAssist:GetStillNeed(itemId, need)
   if still <= 0 then
