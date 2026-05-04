@@ -1,0 +1,31 @@
+# Reusable: check out ref and run WoW packager (invoked from release.yml).
+name: Package and publish
+
+on:
+  workflow_call:
+    inputs:
+      checkout_ref:
+        description: >
+          Git ref to checkout (tag ref after bump, or github.ref for tag-push releases).
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Package and publish
+        uses: BigWigsMods/packager@v2
