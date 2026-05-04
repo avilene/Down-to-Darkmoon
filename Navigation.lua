@@ -262,6 +262,22 @@ function Navigation:IsTomTomLoaded()
   return isTomTomAddonLoaded() and true or false
 end
 
+--- TomTom skips SetCrazyArrow when AddMFWaypoint finds an existing waypoint at the same key — re-apply the arrow.
+local function tomTomFocusWaypoint(tt, uid, title)
+  if type(uid) ~= "table" or type(tt.SetCrazyArrow) ~= "function" then
+    return
+  end
+  local arrival = 15
+  local prof = tt.profile
+  if type(prof) == "table" and prof.arrow and type(prof.arrow.arrival) == "number" then
+    arrival = prof.arrow.arrival
+  end
+  local label = title or uid.title
+  pcall(function()
+    tt:SetCrazyArrow(uid, arrival, label)
+  end)
+end
+
 --- Myu's addon calls TomTom:AddWaypoint(uiMap, nx, ny, opts); older TomTom used AddMFWaypoint only.
 local function addTomTomWaypoint(mapId, xNorm, yNorm, title)
   local TT = isTomTomAddonLoaded()
@@ -277,17 +293,25 @@ local function addTomTomWaypoint(mapId, xNorm, yNorm, title)
     silent = true,
   }
   if type(TT.AddWaypoint) == "function" then
-    local ok = pcall(function()
-      TT:AddWaypoint(mapId, xNorm, yNorm, opts)
+    local ok, uid = pcall(function()
+      return TT:AddWaypoint(mapId, xNorm, yNorm, opts)
     end)
-    if ok then
+    if ok and uid then
+      tomTomFocusWaypoint(TT, uid, title)
+      return true
+    elseif ok then
+      --- Some TomTom builds run AddWaypoint without returning the uid.
       return true
     end
   end
   if type(TT.AddMFWaypoint) == "function" then
-    return pcall(function()
-      TT:AddMFWaypoint(mapId, nil, xNorm, yNorm, opts)
+    local ok, uid = pcall(function()
+      return TT:AddMFWaypoint(mapId, nil, xNorm, yNorm, opts)
     end)
+    if ok and uid then
+      tomTomFocusWaypoint(TT, uid, title)
+      return true
+    end
   end
   return false
 end

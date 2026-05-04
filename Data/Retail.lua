@@ -1,22 +1,23 @@
 -- Profession quest IDs/names: Wowhead retail. Shopping/vendor coords may need patch updates.
 -- uiMapID: Elwynn Forest=37, Stormwind City=84, Orgrimmar=85, Darkmoon Island=407 (orphan overview). x,y are 0-100 map % on that uiMap.
 --
--- Quest → hand-in NPC → POIS[profession] (keys match `profession` on each quest; island % on uiMap 407):
---  questId  quest name                        NPC (Wowhead)                    profession   407 x, y   notes
---  29506    A Fizzy Fusion                    Sylannia (npc=14844)            alchemy      50.5, 69.8
---  29507    Fun for the Little Ones         Professor Paleo (npc=14847)     archaeology  51.8, 60.8
---  29508    Baby Needs Two Pair of Shoes    Yebb Neblegear (npc=14829)      blacksmithing 51.3, 28.0  zoo / horseshoe area
---  29509    Putting the Crunch in the Frog   Stamp Thunderhorn (npc=14845)   cooking      52.9, 68.0  food pavilion
---  29510    Putting Trash to Good Use       Sayge (npc=14822)               enchanting   53.0, 75.5  fortune booth / enchanting
---  29511    Talkin' Tonks                     Rinling (npc=14841)             engineering  55.6, 56.4  same stall cluster as LW/mining
---  29513    Spoilin' for Salty Sea Dogs     Stamp Thunderhorn (npc=14845)   fishing      52.9, 68.0  same coords as cooking (one NPC)
---  29514    Herbs for Healing                Chronos (npc=14833)             herbalism    55.0, 70.6
---  29515    Writing the Future               Sayge (npc=14822)               inscription  53.0, 75.5  same NPC as enchanting daily
---  29516    Keeping the Faire Sparkling       Chronos (npc=14833)             jewelcrafting 55.0, 70.6
---  29517    Eyes on the Prizes                Rinling (npc=14841)             leatherworking 55.6, 56.4
---  29518    Rearm, Reuse, Recycle            Rinling (npc=14841)             mining       55.6, 56.4
---  29519    Tan My Hide                       Chronos (npc=14833)             skinning     55.0, 70.6
---  29520    Banners, Banners Everywhere!     Selina Dourman (npc=10445)      tailoring    55.8, 55.8
+-- Quest → hand-in NPC → POIS[profession]. Darkmoon % from Wowhead Retail NPC pages (g_mapperData zone 5861);
+-- multiple pins per NPC are averaged (same source TomTom-style pins use).
+--  questId  quest name                        NPC (Wowhead)                    profession   % x, y
+--  29506    A Fizzy Fusion                    Sylannia (npc=14844)            alchemy      50.5, 69.6
+--  29507    Fun for the Little Ones         Professor Paleo (npc=14847)     archaeology  51.6, 60.8
+--  29508    Baby Needs Two Pair of Shoes    Yebb Neblegear (npc=14829)      blacksmithing 51.1, 81.9  zoo (south)
+--  29509    Putting the Crunch in the Frog   Stamp Thunderhorn (npc=14845)   cooking      52.6, 67.9
+--  29510    Putting Trash to Good Use       Sayge (npc=14822)               enchanting   53.3, 75.7
+--  29511    Talkin' Tonks                     Rinling (npc=14841)             engineering  49.6, 60.8  in-game verified
+--  29513    Spoilin' for Salty Sea Dogs     Stamp Thunderhorn (npc=14845)   fishing      52.6, 67.9  same NPC as cooking
+--  29514    Herbs for Healing                Chronos (npc=14833)             herbalism    54.8, 70.7
+--  29515    Writing the Future               Sayge (npc=14822)               inscription  53.3, 75.7
+--  29516    Keeping the Faire Sparkling       Chronos (npc=14833)             jewelcrafting 54.8, 70.7
+--  29517    Eyes on the Prizes                Rinling (npc=14841)             leatherworking 49.6, 60.8
+--  29518    Rearm, Reuse, Recycle            Rinling (npc=14841)             mining       49.6, 60.8
+--  29519    Tan My Hide                       Chronos (npc=14833)             skinning     54.8, 70.7
+--  29520    Banners, Banners Everywhere!     Selina Dourman (npc=10445)      tailoring    55.5, 54.9
 -- See: https://www.wowhead.com/quest=29506 (…replace id) for each quest.
 
 local _, addon = ...
@@ -56,7 +57,7 @@ local PROFESSION_SKILL_LINE = {
 --  https://www.wowhead.com/npc=66/tharynn-bouden          — Elwynn 37,  ~41.9, 67.1
 --  https://www.wowhead.com/npc=5817/shimra                — Orgrimmar 85, ~53.8, 82.0  (trade supplies: flour, parchment, thread, dyes, shiny bauble, …)
 --  https://www.wowhead.com/npc=3313/trakgen                — Orgrimmar 85, ~53.8, 82.0  (general goods: Horde Moonberry Juice here)
---  https://www.wowhead.com/npc=14844/sylannia              — Darkmoon 407, 50.5, 69.8
+--  https://www.wowhead.com/npc=14844/sylannia              — Darkmoon 407, 50.5, 69.6 (mapper avg.)
 -- Alchemy DMF quest uses both capital goods and island vendor; profession row uses alchemy key.
 local ITEMS = {
   moonberry_juice = {
@@ -73,7 +74,7 @@ local ITEMS = {
     itemId = 19299,
     name = "Fizzy Faire Drink",
     vendors = {
-      { mapId = 407, x = 50.5, y = 69.8, label = "Sylannia — Darkmoon Drinks", faction = "Any" },
+      { mapId = 407, x = 50.5, y = 69.6, label = "Sylannia — Darkmoon Drinks", faction = "Any" },
     },
   },
   simple_flour = {
@@ -245,22 +246,23 @@ local QUESTS = {
 }
 
 --- Keys match each quest's `profession` string (PROFESSION_SKILL_LINE names).
+--- Darkmoon % from Wowhead Retail NPC mapper (zone 5861); multiple pins averaged unless noted.
 local POIS = {
-  alchemy = { mapId = 407, x = 50.5, y = 69.8, label = "Sylannia (alchemy)" },
-  archaeology = { mapId = 407, x = 51.8, y = 60.8, label = "Professor Paleo (archaeology)" },
-  blacksmithing = { mapId = 407, x = 51.3, y = 28.0, label = "Yebb Neblegear (blacksmithing)" },
-  cooking = { mapId = 407, x = 52.9, y = 68.0, label = "Stamp Thunderhorn (cooking)" },
-  enchanting = { mapId = 407, x = 53.0, y = 75.5, label = "Sayge (enchanting)" },
-  engineering = { mapId = 407, x = 55.6, y = 56.4, label = "Rinling (engineering)" },
-  --- Same world NPC as `cooking` (quests 29513 / 29509); coords must match.
-  fishing = { mapId = 407, x = 52.9, y = 68.0, label = "Stamp Thunderhorn (fishing)" },
-  herbalism = { mapId = 407, x = 55.0, y = 70.6, label = "Chronos (herbalism)" },
-  inscription = { mapId = 407, x = 53.0, y = 75.5, label = "Sayge (inscription)" },
-  jewelcrafting = { mapId = 407, x = 55.0, y = 70.6, label = "Chronos (jewelcrafting)" },
-  leatherworking = { mapId = 407, x = 55.6, y = 56.4, label = "Rinling (leatherworking)" },
-  mining = { mapId = 407, x = 55.6, y = 56.4, label = "Rinling (mining)" },
-  skinning = { mapId = 407, x = 55.0, y = 70.6, label = "Chronos (skinning)" },
-  tailoring = { mapId = 407, x = 55.8, y = 55.8, label = "Selina Dourman (tailoring)" },
+  alchemy = { mapId = 407, x = 50.5, y = 69.6, label = "Sylannia (alchemy)" },
+  archaeology = { mapId = 407, x = 51.6, y = 60.8, label = "Professor Paleo (archaeology)" },
+  blacksmithing = { mapId = 407, x = 51.1, y = 81.9, label = "Yebb Neblegear (blacksmithing)" },
+  cooking = { mapId = 407, x = 52.6, y = 67.9, label = "Stamp Thunderhorn (cooking)" },
+  enchanting = { mapId = 407, x = 53.3, y = 75.7, label = "Sayge (enchanting)" },
+  engineering = { mapId = 407, x = 49.6, y = 60.8, label = "Rinling (engineering)" },
+  --- Same NPC as `cooking` (quests 29513 / 29509).
+  fishing = { mapId = 407, x = 52.6, y = 67.9, label = "Stamp Thunderhorn (fishing)" },
+  herbalism = { mapId = 407, x = 54.8, y = 70.7, label = "Chronos (herbalism)" },
+  inscription = { mapId = 407, x = 53.3, y = 75.7, label = "Sayge (inscription)" },
+  jewelcrafting = { mapId = 407, x = 54.8, y = 70.7, label = "Chronos (jewelcrafting)" },
+  leatherworking = { mapId = 407, x = 49.6, y = 60.8, label = "Rinling (leatherworking)" },
+  mining = { mapId = 407, x = 49.6, y = 60.8, label = "Rinling (mining)" },
+  skinning = { mapId = 407, x = 54.8, y = 70.7, label = "Chronos (skinning)" },
+  tailoring = { mapId = 407, x = 55.5, y = 54.9, label = "Selina Dourman (tailoring)" },
 }
 
 addon.Data = {
