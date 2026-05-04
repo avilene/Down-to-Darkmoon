@@ -15,7 +15,7 @@
 ## Category-zhTW: 專業技能
 ## Notes: Darkmoon Faire profession shopping list, waypoints, and bank/vendor quantity assist.
 ## Author: DownToDarkmoon
-## Version: 1.1.0
+## Version: 1.2.0
 ## SavedVariables: DownToDarkmoonDB
 ## OptionalDeps: TomTom
 ## X-Curse-Project-ID: 1532454
