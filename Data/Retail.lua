@@ -51,6 +51,12 @@ local PROFESSION_SKILL_LINE = {
   archaeology = 394,
 }
 
+-- Shopping / trade vendors: map % on `mapId` (see header). Coords match Wowhead Retail NPC “map & guide” / location lines:
+--  https://www.wowhead.com/npc=295/innkeeper-farley        — Elwynn 37,  ~43.8, 65.9
+--  https://www.wowhead.com/npc=66/tharynn-bouden          — Elwynn 37,  ~41.9, 67.1
+--  https://www.wowhead.com/npc=5817/shimra                — Orgrimmar 85, ~53.8, 82.0  (trade supplies: flour, parchment, thread, dyes, shiny bauble, …)
+--  https://www.wowhead.com/npc=3313/trakgen                — Orgrimmar 85, ~53.8, 82.0  (general goods: Horde Moonberry Juice here)
+--  https://www.wowhead.com/npc=14844/sylannia              — Darkmoon 407, 50.5, 69.8
 -- Alchemy DMF quest uses both capital goods and island vendor; profession row uses alchemy key.
 local ITEMS = {
   moonberry_juice = {
@@ -58,10 +64,8 @@ local ITEMS = {
     itemId = 1645,
     name = "Moonberry Juice",
     vendors = {
-      --- Innkeeper Farley sells Moonberry Juice; coords Wowpedia npc 295 (Lion's Pride Inn, Goldshire).
-      { mapId = 37, x = 43.8, y = 65.9, label = "Innkeeper Farley — Lion's Pride Inn (Goldshire)", faction = "Alliance" },
-      --- Innkeeper Gryshka — The Broken Tusk; Valley of Strength near main gate (Moonberry from inn, not general goods).
-      { mapId = 85, x = 53.6, y = 78.8, label = "Innkeeper Gryshka — The Broken Tusk (Valley of Strength)", faction = "Horde" },
+      { mapId = 37, x = 43.8, y = 65.9, label = "Innkeeper Farley — Lion's Pride Inn, Goldshire", faction = "Alliance" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Trak'gen — General goods, Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   fizzy_faire_drink = {
@@ -69,7 +73,7 @@ local ITEMS = {
     itemId = 19299,
     name = "Fizzy Faire Drink",
     vendors = {
-      { mapId = 407, x = 50.5, y = 69.8, label = "Sylannia (alchemy)", faction = "Any" },
+      { mapId = 407, x = 50.5, y = 69.8, label = "Sylannia — Darkmoon Drinks", faction = "Any" },
     },
   },
   simple_flour = {
@@ -77,9 +81,8 @@ local ITEMS = {
     itemId = 30817,
     name = "Simple Flour",
     vendors = {
-      --- Quest text: Elwynn/Mulgore vendors; Tharynn Bouden trade supplies — Wowpedia npc 66 [41.9, 67.1] on Elwynn map.
-      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
+      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies, Goldshire", faction = "Alliance" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra — Trade supplies, Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   light_parchment = {
@@ -87,8 +90,8 @@ local ITEMS = {
     itemId = 39354,
     name = "Light Parchment",
     vendors = {
-      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
+      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies, Goldshire", faction = "Alliance" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra — Trade supplies, Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   shiny_bauble = {
@@ -96,8 +99,8 @@ local ITEMS = {
     itemId = 6529,
     name = "Shiny Bauble",
     vendors = {
-      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 69.6, y = 41.0, label = "Fishing supplier (Orgrimmar)", faction = "Horde" },
+      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies, Goldshire", faction = "Alliance" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra — Trade supplies, Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   coarse_thread = {
@@ -105,8 +108,8 @@ local ITEMS = {
     itemId = 2320,
     name = "Coarse Thread",
     vendors = {
-      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
+      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies, Goldshire", faction = "Alliance" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra — Trade supplies, Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   blue_dye = {
@@ -114,8 +117,8 @@ local ITEMS = {
     itemId = 6260,
     name = "Blue Dye",
     vendors = {
-      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
+      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies, Goldshire", faction = "Alliance" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra — Trade supplies, Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
   red_dye = {
@@ -123,8 +126,8 @@ local ITEMS = {
     itemId = 2604,
     name = "Red Dye",
     vendors = {
-      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies (Goldshire)", faction = "Alliance" },
-      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra (trade) & Trak'Gen (general goods) — Orgrimmar General Store, Valley of Strength", faction = "Horde" },
+      { mapId = 37, x = 41.9, y = 67.1, label = "Tharynn Bouden — Trade Supplies, Goldshire", faction = "Alliance" },
+      { mapId = 85, x = 53.8, y = 82.0, label = "Shimra — Trade supplies, Orgrimmar General Store, Valley of Strength", faction = "Horde" },
     },
   },
 }
