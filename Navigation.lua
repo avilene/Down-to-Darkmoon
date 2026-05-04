@@ -178,7 +178,10 @@ local function buildWaypointAttempts(mapId, xPct, yPct)
 
   local continentID, worldPos = worldDataFromMapPct(mapId, xPct, yPct)
 
-  if continentID and worldPos and pm then
+  --- Reproject onto the player's current uiMap only for Darkmoon (407/408): there, orphan vs floor
+  --- ids need world-space bridging. For normal zones (e.g. Elwynn vendor while you are in Silvermoon),
+  --- projecting EK world coords onto Silvermoon's map yields garbage after clamping — prefer raw target map.
+  if mapIdRefersToDarkmoonIsland(mapId) and continentID and worldPos and pm then
     local nx, ny = mapPctOnUiMap(continentID, worldPos, pm)
     if nx and ny then
       addUniqueAttempt(attempts, pm, nx, ny)
@@ -206,6 +209,27 @@ local function buildWaypointAttempts(mapId, xPct, yPct)
     end
   end
 
+  --- Parent overview uiMap (407): Myu's Knowledge Points Tracker uses this id for DMF pins; matches TomTom + SuperTrack behavior there.
+  if mapIdRefersToDarkmoonIsland(mapId) then
+    addUniqueAttempt(attempts, DARKMOON_ORPHAN_MAP_ID, x, y)
+  end
+
+  --- Blizzard map pins often reject orphan/overview uiMap 407; try dungeon floors (408, …) first, 407 last for SetUserWaypoint.
+  if mapIdRefersToDarkmoonIsland(mapId) then
+    local prefer, orphan407 = {}, {}
+    for _, att in ipairs(attempts) do
+      if att[1] == DARKMOON_ORPHAN_MAP_ID then
+        orphan407[#orphan407 + 1] = att
+      else
+        prefer[#prefer + 1] = att
+      end
+    end
+    for i = 1, #orphan407 do
+      prefer[#prefer + 1] = orphan407[i]
+    end
+    attempts = prefer
+  end
+
   local db = addon.GetDB and addon:GetDB()
   if type(db) == "table" and db.debugNavigation then
     waypointDebug(("buildWaypointAttempts(%s, %.2f%%, %.2f%%) → %d candidate(s)"):format(tostring(mapId), xPct, yPct, #attempts))
@@ -218,41 +242,75 @@ local function buildWaypointAttempts(mapId, xPct, yPct)
   return attempts
 end
 
-local function tryBlizzardPinAttempts(mapId, xPct, yPct, title, attemptsPrebuilt)
-  local attempts = attemptsPrebuilt or buildWaypointAttempts(mapId, xPct, yPct)
-  waypointDebug(("tryBlizzardPinAttempts | %s"):format(title or "?"))
-
-  if C_Map.ClearUserWaypoint then
-    pcall(C_Map.ClearUserWaypoint)
+--- Prefer C_AddOns (Retail); matches Myu's Knowledge Points Tracker TomTom gate.
+local function isTomTomAddonLoaded()
+  local TT = _G.TomTom
+  if not TT then
+    return false
   end
+  if C_AddOns and C_AddOns.IsAddOnLoaded then
+    local _, loaded = C_AddOns.IsAddOnLoaded("TomTom")
+    return loaded and TT or false
+  end
+  if type(_G.IsAddOnLoaded) == "function" and _G.IsAddOnLoaded("TomTom") then
+    return TT
+  end
+  return TT
+end
 
-  for _, att in ipairs(attempts) do
-    local mid, nx, ny = att[1], att[2], att[3]
-    nx = clamp01(nx)
-    ny = clamp01(ny)
-    if nx and ny then
-      local point = createUiMapPoint(mid, nx, ny)
-      if not point then
-        waypointDebug(("  Create UiMapPoint FAILED | uiMap=%s nx=%.6f ny=%.6f"):format(tostring(mid), nx, ny))
-      else
-        local ok, err = pcall(C_Map.SetUserWaypoint, point)
-        if ok then
-          if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
-            C_SuperTrack.SetSuperTrackedUserWaypoint(true)
-          end
-          waypointDebug(("  SetUserWaypoint OK | uiMap=%s"):format(tostring(mid)))
-          print(("|cfffeaa00Down to Darkmoon:|r Map pin — %s"):format(title))
-          return true
-        end
-        waypointDebug(("  SetUserWaypoint FAILED | uiMap=%s | %s"):format(tostring(mid), tostring(err)))
-      end
-    else
-      waypointDebug(("  skip attempt (bad coords) | uiMap=%s"):format(tostring(mid)))
+function Navigation:IsTomTomLoaded()
+  return isTomTomAddonLoaded() and true or false
+end
+
+--- Myu's addon calls TomTom:AddWaypoint(uiMap, nx, ny, opts); older TomTom used AddMFWaypoint only.
+local function addTomTomWaypoint(mapId, xNorm, yNorm, title)
+  local TT = isTomTomAddonLoaded()
+  if not TT then
+    return false
+  end
+  local opts = {
+    title = title,
+    persistent = false,
+    minimap = true,
+    world = true,
+    crazy = true,
+    silent = true,
+  }
+  if type(TT.AddWaypoint) == "function" then
+    local ok = pcall(function()
+      TT:AddWaypoint(mapId, xNorm, yNorm, opts)
+    end)
+    if ok then
+      return true
     end
   end
-
-  waypointDebug("  all Blizzard pin attempts exhausted")
+  if type(TT.AddMFWaypoint) == "function" then
+    return pcall(function()
+      TT:AddMFWaypoint(mapId, nil, xNorm, yNorm, opts)
+    end)
+  end
   return false
+end
+
+local function tryBlizzardPinOnce(mid, nx, ny)
+  local point = createUiMapPoint(mid, nx, ny)
+  if not point then
+    return false
+  end
+  local ok = pcall(C_Map.SetUserWaypoint, point)
+  if not ok then
+    return false
+  end
+  if C_Map.HasUserWaypoint then
+    local hasOk, has = pcall(C_Map.HasUserWaypoint)
+    if hasOk and not has then
+      return false
+    end
+  end
+  if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+    pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
+  end
+  return true
 end
 
 function Navigation:SetWaypointPct(mapId, xPct, yPct, title)
@@ -272,41 +330,35 @@ function Navigation:SetWaypointPct(mapId, xPct, yPct, title)
 
   local attempts = buildWaypointAttempts(mapId, xPct, yPct)
 
-  local TT = _G.TomTom
-  if TT and TT.AddMFWaypoint then
-    waypointDebug("  TomTom: trying AddMFWaypoint for each candidate…")
-    for _, att in ipairs(attempts) do
-      local mid, nx, ny = att[1], att[2], att[3]
-      nx = clamp01(nx)
-      ny = clamp01(ny)
-      if not nx or not ny then
-        waypointDebug(("  TomTom skip | uiMap=%s (bad coords)"):format(tostring(mid)))
-      else
-        local ok, err = pcall(function()
-          TT:AddMFWaypoint(mid, nil, nx, ny, {
-            title = title,
-            minimap = true,
-            world = true,
-            persistent = false,
-            crazy = true,
-            silent = true,
-          })
-        end)
-        if ok then
-          waypointDebug(("  TomTom OK | uiMap=%s"):format(tostring(mid)))
-          print(("|cfffeaa00Down to Darkmoon:|r Waypoint — %s"):format(title))
-          return
-        end
-        waypointDebug(("  TomTom FAIL | uiMap=%s | %s"):format(tostring(mid), tostring(err)))
-      end
-    end
-    waypointDebug("  TomTom: no route succeeded")
-  else
-    waypointDebug("  TomTom not loaded (optional)")
+  if C_Map.ClearUserWaypoint then
+    pcall(C_Map.ClearUserWaypoint)
   end
 
-  if tryBlizzardPinAttempts(mapId, xPct, yPct, title, attempts) then
-    return
+  --- Blizzard pin first, then TomTom (same order as Myu's Knowledge Points Tracker).
+  for _, att in ipairs(attempts) do
+    local mid, nx, ny = att[1], att[2], att[3]
+    nx = clamp01(nx)
+    ny = clamp01(ny)
+    if nx and ny then
+      if tryBlizzardPinOnce(mid, nx, ny) then
+        addTomTomWaypoint(mid, nx, ny, title)
+        waypointDebug(("  pin+TomTom | uiMap=%s"):format(tostring(mid)))
+        print(("|cfffeaa00Down to Darkmoon:|r Map pin — %s"):format(title))
+        return
+      end
+    end
+  end
+
+  waypointDebug("  Blizzard pin failed for all candidates; trying TomTom-only…")
+  for _, att in ipairs(attempts) do
+    local mid, nx, ny = att[1], att[2], att[3]
+    nx = clamp01(nx)
+    ny = clamp01(ny)
+    if nx and ny and addTomTomWaypoint(mid, nx, ny, title) then
+      waypointDebug(("  TomTom-only OK | uiMap=%s"):format(tostring(mid)))
+      print(("|cfffeaa00Down to Darkmoon:|r Waypoint — %s"):format(title))
+      return
+    end
   end
 
   print("|cfffeaa00Down to Darkmoon:|r Install TomTom for arrows, or open a zone map that allows pins.")

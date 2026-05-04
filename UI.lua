@@ -34,6 +34,18 @@ local function colorCount(fs, have, need)
   end
 end
 
+--- Darkmoon Island POI map % (Retail uiMap 408); shown when TomTom is absent so players can place pins manually.
+local function appendPoiCoordHint(text, poiId)
+  if not text or not poiId or addon.Navigation:IsTomTomLoaded() then
+    return text
+  end
+  local p = addon.Data.POIS and addon.Data.POIS[poiId]
+  if not p or type(p.x) ~= "number" or type(p.y) ~= "number" then
+    return text
+  end
+  return text .. (" |cff9d9d9d(%.1f, %.1f)|r"):format(p.x, p.y)
+end
+
 function UI:ApplySavedPosition()
   local f = self.mainFrame
   if not f then
@@ -184,8 +196,28 @@ function UI:GetQuestRow(i)
         GameTooltip:AddLine("Completed for this Darkmoon Faire.", 0.25, 1, 0.35)
         GameTooltip:AddLine("Right-click: ignore (grey out, hide shopping).", 0.65, 0.85, 1)
       else
-        GameTooltip:AddLine("Click: waypoint on Darkmoon Island.", 0.7, 0.9, 1)
-        GameTooltip:AddLine("Right-click: ignore (grey out, hide Pull/Buy).", 0.65, 0.85, 1)
+        if addon.Navigation:IsTomTomLoaded() then
+          GameTooltip:AddLine("Click: waypoint on Darkmoon Island.", 0.7, 0.9, 1)
+        else
+          local pid = self.dtdPoiId
+          local p = pid and addon.Data.POIS and addon.Data.POIS[pid]
+          if p and type(p.x) == "number" and type(p.y) == "number" then
+            GameTooltip:AddLine(
+              ("Darkmoon map pin: |cffffffff%.1f, %.1f|r (install TomTom for arrows)."):format(
+                p.x,
+                p.y
+              ),
+              0.7,
+              0.9,
+              1,
+              true
+            )
+          else
+            GameTooltip:AddLine("Install TomTom for in-game waypoints, or use the map % on the quest line.", 0.7, 0.9, 1,
+              true)
+          end
+        end
+        GameTooltip:AddLine("Right-click: ignore quest.", 0.65, 0.85, 1)
       end
       GameTooltip:Show()
     end)
@@ -318,7 +350,8 @@ function UI:GetItemRow(i)
       elseif (self.dtdBuyQty or 0) <= 0 and (self.dtdMerchIdx or 0) > 0 then
         GameTooltip:AddLine("Cannot buy any right now (stock or not enough money).", 0.9, 0.65, 0.45, true)
       else
-        GameTooltip:AddLine("This merchant does not sell this item (try another vendor / waypoint).", 0.9, 0.75, 0.55, true)
+        GameTooltip:AddLine("This merchant does not sell this item (try another vendor / waypoint).", 0.9, 0.75, 0.55,
+          true)
       end
       GameTooltip:Show()
     end)
@@ -418,16 +451,16 @@ function UI:Refresh()
       row.qBtn.dtdIgnored = ignored
       if ignored then
         if completed then
-          row.qBtn.qtext:SetText("|cff888888" .. q.name .. " - completed (ignored)|r")
+          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " - completed (ignored)|r", q.poiId))
         else
-          row.qBtn.qtext:SetText("|cff888888" .. q.name .. " (ignored)|r")
+          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " (ignored)|r", q.poiId))
         end
       elseif completed then
-        row.qBtn.qtext:SetText("|cff33ff33" .. q.name .. " - completed|r")
+        row.qBtn.qtext:SetText(appendPoiCoordHint("|cff33ff33" .. q.name .. " - completed|r", q.poiId))
       elseif C_QuestLog.IsOnQuest(q.questId) then
-        row.qBtn.qtext:SetText(q.name)
+        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name, q.poiId))
       else
-        row.qBtn.qtext:SetText(q.name .. " |cffff5555(not on quest)|r")
+        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name .. " |cffff5555(not on quest)|r", q.poiId))
       end
 
       y = y + QUEST_ROW_H + ROW_GAP
@@ -526,9 +559,9 @@ function UI:Refresh()
     local allProfessionDone = true
     for _, q in ipairs(addon.Data.QUESTS) do
       if
-        skill[q.skillLineId]
-        and not addon:IsProfessionQuestCompleted(q.questId)
-        and not addon:IsProfessionQuestIgnored(q.questId)
+          skill[q.skillLineId]
+          and not addon:IsProfessionQuestCompleted(q.questId)
+          and not addon:IsProfessionQuestIgnored(q.questId)
       then
         allProfessionDone = false
         break
