@@ -1,17 +1,39 @@
-# Publishes zips using BigWigsMods/packager (WoW Packager action).
-# Version comes from the Git tag. To bump DownToDarkmoon.toc semver and tag in one step, run the
-# "Bump version and tag" workflow (Actions → workflow_dispatch). Or manually:
-#   git tag -a v1.0.1 -m "1.0.1" && git push origin v1.0.1
+# Packages and publishes with BigWigsMods/packager (WoW Packager action).
+#
+# Triggers:
+#   • workflow_dispatch — bump TOC semver (patch/minor/major) **or** skip bump and release the
+#     current ## Version (creates vX.Y.Z only if that tag is missing; fails if the tag exists on
+#     another commit). Then package in the same run.
+#   • push tags — package only (e.g. manual: git tag -a v1.0.1 -m "1.0.1" && git push origin v1.0.1).
+#
+# Tag pushes from this workflow’s bump step use github-actions[bot]; the package job is skipped for
+# those events so the dispatch run doesn’t double-publish. Human-pushed tags still release.
 #
 # Secrets:
-#   CF_API_KEY       — CurseForge API token (upload + localization). Add in repo Settings → Secrets.
-# GitHub Releases use the automatic GITHUB_TOKEN (no extra secret).
+#   CF_API_KEY       — CurseForge API token (upload + localization). Repo Settings → Secrets.
+# GitHub Releases use GITHUB_TOKEN (no extra secret).
 # Optional later: WOWI_API_TOKEN, WAGO_API_TOKEN for other hosts.
 #
-# CurseForge project id: ## X-Curse-Project-ID: <id> in DownToDarkmoon.toc, or packager args: -p <id>
+# CurseForge project id: ## X-Curse-Project-ID in DownToDarkmoon.toc, or packager -p <id>
+#
+# If branch protection blocks pushes from Actions, allow github-actions[bot] or use a PAT on checkout.
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: >
+          Semver bump for TOC ## Version, or "skip" to keep the current version and tag vX.Y.Z
+          from it (tag must match HEAD or be creatable).
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+          - skip
   push:
     tags:
       - "*"
@@ -19,8 +41,147 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  release:
+  bump:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version or tag from TOC
+        id: bump
+        run: |
+          set -euo pipefail
+          TOC="DownToDarkmoon.toc"
+          BUMP="${{ inputs.bump }}"
+          BRANCH="${{ github.ref_name }}"
+
+          if [[ ! -f "$TOC" ]]; then
+            echo "::error::Missing $TOC"
+            exit 1
+          fi
+
+          VERSION_LINE=$(grep -m1 '^## Version:' "$TOC") || true
+          VERSION=$(echo "$VERSION_LINE" | sed 's/^## Version:[[:space:]]*//')
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid or missing ## Version in $TOC (got '${VERSION:-empty}')"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [[ "$BUMP" == "skip" ]]; then
+            NEW="${VERSION}"
+            TAG="v${NEW}"
+            HEAD_SHA=$(git rev-parse HEAD)
+            git fetch origin --tags
+
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              TAG_SHA=$(git rev-parse "${TAG}^{}")
+              if [[ "$TAG_SHA" != "$HEAD_SHA" ]]; then
+                echo "::error::Tag ${TAG} exists but targets $(git rev-parse --short "$TAG_SHA"), not current HEAD $(git rev-parse --short "$HEAD_SHA"). Move the tag or bump the version."
+                exit 1
+              fi
+              echo "Tag ${TAG} already points at HEAD; no tag push."
+            else
+              git tag -a "$TAG" -m "Release ${TAG}"
+              git push origin "$TAG"
+              echo "Created and pushed ${TAG} at HEAD."
+            fi
+
+            {
+              echo "version=${NEW}"
+              echo "tag=${TAG}"
+              echo "previous=${VERSION}"
+            } >> "$GITHUB_OUTPUT"
+
+            echo "Skip bump: releasing TOC version ${NEW} as ${TAG}"
+            exit 0
+          fi
+
+          IFS='.' read -r MA MI PA <<< "$VERSION"
+          case "$BUMP" in
+            major)
+              MA=$((MA + 1)); MI=0; PA=0
+              ;;
+            minor)
+              MI=$((MI + 1)); PA=0
+              ;;
+            patch)
+              PA=$((PA + 1))
+              ;;
+            *)
+              echo "::error::Unknown bump: $BUMP"
+              exit 1
+              ;;
+          esac
+          NEW="${MA}.${MI}.${PA}"
+          TAG="v${NEW}"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+
+          sed -i "s/^## Version:.*$/## Version: ${NEW}/" "$TOC"
+
+          git add "$TOC"
+          if git diff --cached --quiet; then
+            echo "::error::No staged changes after bump (unexpected)"
+            exit 1
+          fi
+
+          git commit -m "chore: bump version to ${NEW}"
+          git tag -a "$TAG" -m "Release ${TAG}"
+
+          git push origin "$BRANCH"
+          git push origin "$TAG"
+
+          {
+            echo "version=${NEW}"
+            echo "tag=${TAG}"
+            echo "previous=${VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Bumped ${VERSION} → ${NEW}, pushed ${BRANCH} and ${TAG}"
+
+      - name: Summary
+        run: |
+          if [[ "${{ inputs.bump }}" == "skip" ]]; then
+            echo "### Release from existing TOC version" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **TOC version:** ${{ steps.bump.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Tag:** \`${{ steps.bump.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Version bump" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Previous:** ${{ steps.bump.outputs.previous }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **New:** ${{ steps.bump.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Tag:** \`${{ steps.bump.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  package:
+    needs: bump
+    if: >
+      !cancelled() &&
+      (
+        (github.event_name == 'workflow_dispatch' && needs.bump.result == 'success') ||
+        (
+          github.event_name == 'push' &&
+          needs.bump.result == 'skipped' &&
+          github.actor != 'github-actions[bot]'
+        )
+      )
     runs-on: ubuntu-latest
     env:
       CF_API_KEY: ${{ secrets.CF_API_KEY }}
@@ -31,6 +192,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # After bump, default ref would still be pre-push SHA; checkout the new tag instead.
+          ref: ${{ github.event_name == 'workflow_dispatch' && needs.bump.outputs.tag || github.ref }}
 
       - name: Package and publish
         uses: BigWigsMods/packager@v2
