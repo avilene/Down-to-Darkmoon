@@ -1,0 +1,1 @@
+[![Release](https://github.com/avilene/Down-to-Darkmoon/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/avilene/Down-to-Darkmoon/actions/workflows/release.yml) [![GitHub Release](https://img.shields.io/github/release/avilene/Down-to-Darkmoon.svg?style=flat)]() 
