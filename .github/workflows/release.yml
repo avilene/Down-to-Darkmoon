@@ -2,8 +2,8 @@
 #
 # Triggers:
 #   • workflow_dispatch — bump TOC semver (patch/minor/major) **or** skip bump and release the
-#     current ## Version (creates vX.Y.Z only if that tag is missing; fails if the tag exists on
-#     another commit). Then package in the same run.
+#     current ## Version (tag vX.Y.Z is created if missing, or moved to HEAD if it already exists).
+#     Then package in the same run.
 #   • push tags — package only (e.g. manual: git tag -a v1.0.1 -m "1.0.1" && git push origin v1.0.1).
 #
 # Tag pushes from this workflow’s bump step use github-actions[bot]; the package job is skipped for
@@ -24,8 +24,8 @@ on:
     inputs:
       bump:
         description: >
-          Semver bump for TOC ## Version, or "skip" to keep the current version and tag vX.Y.Z
-          from it (tag must match HEAD or be creatable).
+          Semver bump for TOC ## Version, or "skip" to keep the current version and ensure tag vX.Y.Z
+          on HEAD (creates the tag or force-moves it to the current commit).
         required: true
         type: choice
         default: patch
@@ -88,11 +88,14 @@ jobs:
 
             if git rev-parse "$TAG" >/dev/null 2>&1; then
               TAG_SHA=$(git rev-parse "${TAG}^{}")
-              if [[ "$TAG_SHA" != "$HEAD_SHA" ]]; then
-                echo "::error::Tag ${TAG} exists but targets $(git rev-parse --short "$TAG_SHA"), not current HEAD $(git rev-parse --short "$HEAD_SHA"). Move the tag or bump the version."
-                exit 1
+              if [[ "$TAG_SHA" == "$HEAD_SHA" ]]; then
+                echo "Tag ${TAG} already points at HEAD; no tag push."
+              else
+                echo "Moving tag ${TAG} from $(git rev-parse --short "$TAG_SHA") to HEAD $(git rev-parse --short "$HEAD_SHA")"
+                git tag -fa "$TAG" -m "Release ${TAG}"
+                git push --force origin "$TAG"
+                echo "Force-pushed ${TAG} to HEAD."
               fi
-              echo "Tag ${TAG} already points at HEAD; no tag push."
             else
               git tag -a "$TAG" -m "Release ${TAG}"
               git push origin "$TAG"
