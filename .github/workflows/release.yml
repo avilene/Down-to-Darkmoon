@@ -1,5 +1,7 @@
 # Publishes zips using BigWigsMods/packager (WoW Packager action).
-# Version comes from the Git tag (create an annotated tag, e.g. git tag -a v1.0.1 -m "1.0.1" && git push origin v1.0.1).
+# Version comes from the Git tag. To bump DownToDarkmoon.toc semver and tag in one step, run the
+# "Bump version and tag" workflow (Actions → workflow_dispatch). Or manually:
+#   git tag -a v1.0.1 -m "1.0.1" && git push origin v1.0.1
 #
 # Secrets:
 #   CF_API_KEY       — CurseForge API token (upload + localization). Add in repo Settings → Secrets.

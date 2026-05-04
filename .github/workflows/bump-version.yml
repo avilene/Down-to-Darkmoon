@@ -1,0 +1,116 @@
+# Bumps ## Version in DownToDarkmoon.toc (semver), commits, tags vX.Y.Z, and pushes.
+# The tag push triggers release.yml (BigWigsMods packager).
+#
+# Run: Actions → "Bump version and tag" → Run workflow → choose patch / minor / major.
+#
+# Requires permission for the default GITHUB_TOKEN to push commits and tags (contents: write).
+# If branch protection blocks direct pushes, use a PAT or adjust protection rules for GitHub Actions.
+name: Bump version and tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which semver segment to increment
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump-version-and-tag
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version, commit, and tag
+        id: bump
+        run: |
+          set -euo pipefail
+          TOC="DownToDarkmoon.toc"
+          BUMP="${{ inputs.bump }}"
+          BRANCH="${{ github.ref_name }}"
+
+          if [[ ! -f "$TOC" ]]; then
+            echo "::error::Missing $TOC"
+            exit 1
+          fi
+
+          VERSION_LINE=$(grep -m1 '^## Version:' "$TOC") || true
+          VERSION=$(echo "$VERSION_LINE" | sed 's/^## Version:[[:space:]]*//')
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid or missing ## Version in $TOC (got '${VERSION:-empty}')"
+            exit 1
+          fi
+
+          IFS='.' read -r MA MI PA <<< "$VERSION"
+          case "$BUMP" in
+            major)
+              MA=$((MA + 1)); MI=0; PA=0
+              ;;
+            minor)
+              MI=$((MI + 1)); PA=0
+              ;;
+            patch)
+              PA=$((PA + 1))
+              ;;
+            *)
+              echo "::error::Unknown bump: $BUMP"
+              exit 1
+              ;;
+          esac
+          NEW="${MA}.${MI}.${PA}"
+          TAG="v${NEW}"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+
+          sed -i "s/^## Version:.*$/## Version: ${NEW}/" "$TOC"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add "$TOC"
+          if git diff --cached --quiet; then
+            echo "::error::No staged changes after bump (unexpected)"
+            exit 1
+          fi
+
+          git commit -m "chore: bump version to ${NEW}"
+          git tag -a "$TAG" -m "Release ${TAG}"
+
+          git push origin "$BRANCH"
+          git push origin "$TAG"
+
+          {
+            echo "version=${NEW}"
+            echo "tag=${TAG}"
+            echo "previous=${VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Bumped ${VERSION} → ${NEW}, pushed ${BRANCH} and ${TAG}"
+
+      - name: Summary
+        run: |
+          echo "### Version bump" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Previous:** ${{ steps.bump.outputs.previous }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **New:** ${{ steps.bump.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tag:** \`${{ steps.bump.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The **Release** workflow should start from the new tag." >> "$GITHUB_STEP_SUMMARY"
