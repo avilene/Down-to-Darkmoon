@@ -20,19 +20,9 @@
 #
 # If branch protection blocks pushes from Actions, allow github-actions[bot] or use a PAT on checkout.
 #
-# Run title in the Actions tab (not the static workflow name): run-name below. Commit subject comes
-# from the push payload when GitHub sends it; manual runs have no head_commit in the event, so we
-# show bump + short SHA instead (the run still executes on that commit).
+# No run-name: GitHub sets the run title from the event (e.g. commit message on push). See
+# https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#run-name
 name: Release
-
-run-name: >-
-  ${{
-    github.event.head_commit && github.event.head_commit.message &&
-      format('Release: {0}', split(github.event.head_commit.message, '\n')[0])
-    || (github.event_name == 'workflow_dispatch' &&
-      format('Release: {0} bump · {1}', inputs.bump, github.sha))
-    || format('Release: {0}', github.sha)
-  }}
 
 on:
   workflow_dispatch:
