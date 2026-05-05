@@ -35,4 +35,5 @@ addon.UI.C = {
   QUEST_USE_BTN_SIZE = ITEM_ROW_H - 2,
 }
 
-addon.UI.C.QUEST_USE_ACTION_OFFSET = 2 + addon.UI.C.QUEST_USE_BTN_SIZE
+--- Keep use rows aligned with shopping rows: one right-side action button width + right pad.
+addon.UI.C.QUEST_USE_ACTION_OFFSET = 2 + addon.UI.C.ACTION_BTN_W

@@ -149,6 +149,14 @@ function UI:Refresh()
               local name = addon:GetItemNameByIDCompat(itemId) or ("Item " .. tostring(itemId))
               urow.nameFs:SetText(name)
               addon:SetItemIconTexture(urow.icon, itemId)
+              if urow.bg then
+                urow.bg.dtdItemId = itemId
+                urow.bg.dtdItemName = name
+              end
+              if urow.iconHit then
+                urow.iconHit.dtdItemId = itemId
+                urow.iconHit.dtdItemName = name
+              end
               urow.cntFs:SetText(("%d in bags"):format(have))
               urow.cntFs:SetTextColor(0.65, 0.85, 1)
 
@@ -157,6 +165,13 @@ function UI:Refresh()
               ub.dtdQuestId = q.questId
               ub.dtdItemId = itemId
               ub:Enable()
+              --- Secure item setup: use localized bag item name (same requirement as Blizzard-style secure item buttons).
+              ub:SetAttribute("type", nil)
+              ub:SetAttribute("item", nil)
+              if not combat then
+                ub:SetAttribute("type", "item")
+                ub:SetAttribute("item", bagName)
+              end
               if bagIcon and type(bagIcon) == "number" then
                 ub.iconTex:SetTexture(bagIcon)
               else
@@ -191,6 +206,10 @@ function UI:Refresh()
 
             irow.nameFs:SetText(def.name)
             addon:SetItemIconTexture(irow.icon, itemId)
+            if irow.iconHit then
+              irow.iconHit.dtdItemId = itemId
+              irow.iconHit.dtdItemName = def.name
+            end
             irow.cntFs:SetText(("%d/%d"):format(math.min(have, need), need))
             colorCount(irow.cntFs, have, need)
 

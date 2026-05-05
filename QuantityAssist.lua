@@ -257,15 +257,19 @@ function QuantityAssist:GetAffordableBuyQty(merchantIndex, wantQty)
     return 0
   end
   if not price or price <= 0 then
-    return math.min(wantQty, stackCount or wantQty)
+    local q = wantQty
+    if numAvailable and numAvailable > -1 then
+      q = math.min(q, numAvailable)
+    end
+    return q
   end
   local gold = GetMoney()
   local maxByGold = math.floor(gold / price)
   if maxByGold <= 0 then
     return 0
   end
-  local maxStack = stackCount or wantQty
-  local q = math.min(wantQty, maxByGold, maxStack)
+  --- `BuyMerchantItem(index, qty)` accepts full desired quantity; stackCount is packaging, not a hard click cap.
+  local q = math.min(wantQty, maxByGold)
   if numAvailable and numAvailable > -1 then
     q = math.min(q, numAvailable)
   end

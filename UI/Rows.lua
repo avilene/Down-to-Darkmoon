@@ -3,6 +3,29 @@ local _, addon = ...
 local UI = addon.UI
 local C = UI.C
 
+local function ShowBlizzardItemTooltip(owner, itemId, fallbackName)
+  if not owner then
+    return
+  end
+  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+  if itemId and GameTooltip.SetItemByID then
+    local ok = pcall(GameTooltip.SetItemByID, GameTooltip, itemId)
+    if ok then
+      GameTooltip:Show()
+      return
+    end
+  end
+  if itemId and GameTooltip.SetHyperlink then
+    local ok = pcall(GameTooltip.SetHyperlink, GameTooltip, ("item:%d"):format(itemId))
+    if ok then
+      GameTooltip:Show()
+      return
+    end
+  end
+  GameTooltip:AddLine(fallbackName or ("Item " .. tostring(itemId or "?")), 1, 1, 1)
+  GameTooltip:Show()
+end
+
 local function CreateAddonActionButton(parent, label)
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(C.ACTION_BTN_W, C.ACTION_BTN_H)
@@ -81,7 +104,9 @@ local function UseFirstBagItemById(itemId)
   if not C_Container or type(C_Container.GetContainerNumSlots) ~= "function" or type(C_Container.GetContainerItemInfo) ~= "function" then
     return false
   end
-  local maxBag = type(NUM_BAG_SLOTS) == "number" and NUM_BAG_SLOTS or 4
+  --- Retail may place these items in reagent bag; scan all equipped bag IDs, not just 0-4.
+  local maxBag = type(NUM_TOTAL_EQUIPPED_BAG_SLOTS) == "number" and NUM_TOTAL_EQUIPPED_BAG_SLOTS
+    or (type(NUM_BAG_SLOTS) == "number" and NUM_BAG_SLOTS or 4)
   for bag = 0, maxBag do
     local slots = C_Container.GetContainerNumSlots(bag)
     if type(slots) == "number" and slots > 0 then
@@ -101,6 +126,17 @@ local function UseFirstBagItemById(itemId)
     end
   end
   return false
+end
+
+local function TryUseQuestRowItem(self)
+  if InCombatLockdown() then
+    print("|cfffeaa00Down to Darkmoon:|r Cannot use quest items in combat.")
+    return
+  end
+  local itemId = self and self.dtdItemId
+  if not itemId or not UseFirstBagItemById(itemId) then
+    print("|cfffeaa00Down to Darkmoon:|r Could not use that item from your bags.")
+  end
 end
 
 function UI:GetQuestRow(i)
@@ -241,6 +277,14 @@ function UI:GetItemRow(i)
     icon:SetSize(18, 18)
     icon:SetPoint("LEFT", 4, 0)
     irow.icon = icon
+    local iconHit = CreateFrame("Button", nil, bg)
+    iconHit:SetSize(18, 18)
+    iconHit:SetPoint("LEFT", 4, 0)
+    iconHit:SetScript("OnEnter", function(self)
+      ShowBlizzardItemTooltip(self, self.dtdItemId, self.dtdItemName)
+    end)
+    iconHit:SetScript("OnLeave", GameTooltip_Hide)
+    irow.iconHit = iconHit
 
     local nameFs = bg:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     nameFs:SetPoint("LEFT", icon, "RIGHT", 5, 0)
@@ -355,21 +399,43 @@ function UI:GetQuestUseItemRow(i)
     urow = CreateFrame("Frame", nil, self.content)
     urow:SetSize(C.CONTENT_W - 10, C.ITEM_ROW_H)
 
-    local bg = CreateFrame("Frame", nil, urow)
-    bg:SetPoint("LEFT", urow, "LEFT", 0, 0)
-    bg:SetPoint("RIGHT", urow, "RIGHT", -C.QUEST_USE_ACTION_OFFSET, 0)
-    bg:SetHeight(C.ITEM_ROW_H)
-    bg:SetFrameLevel(10)
+    local actionW = C.QUEST_USE_ACTION_OFFSET
+    local actionBackdrop = urow:CreateTexture(nil, "BACKGROUND")
+    actionBackdrop:SetPoint("TOPRIGHT", urow, "TOPRIGHT", 0, 0)
+    actionBackdrop:SetPoint("BOTTOMRIGHT", urow, "BOTTOMRIGHT", 0, 0)
+    actionBackdrop:SetWidth(actionW)
+    actionBackdrop:SetColorTexture(0.12, 0.12, 0.14, 1)
+
+    local bg = CreateFrame("Button", nil, urow)
+    bg:SetPoint("TOPLEFT", urow, "TOPLEFT", 0, 0)
+    bg:SetPoint("BOTTOMRIGHT", urow, "BOTTOMRIGHT", -actionW, 0)
+    bg:RegisterForClicks("LeftButtonUp")
+    bg:SetFrameLevel(urow:GetFrameLevel() + 5)
     urow.bg = bg
 
     local rowTint = bg:CreateTexture(nil, "BACKGROUND")
     rowTint:SetAllPoints()
     rowTint:SetColorTexture(0.07, 0.09, 0.12, 0.45)
 
+    local bgHi = bg:CreateTexture(nil, "HIGHLIGHT")
+    bgHi:SetAllPoints()
+    bgHi:SetColorTexture(1, 1, 1, 0.04)
+    bg:SetHighlightTexture(bgHi)
+
     local icon = bg:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
     icon:SetPoint("LEFT", 4, 0)
     urow.icon = icon
+    local iconHit = CreateFrame("Button", nil, bg)
+    iconHit:SetSize(18, 18)
+    iconHit:SetPoint("LEFT", 4, 0)
+    iconHit:RegisterForClicks("LeftButtonUp")
+    iconHit:SetScript("OnEnter", function(self)
+      ShowBlizzardItemTooltip(self, self.dtdItemId, self.dtdItemName)
+    end)
+    iconHit:SetScript("OnClick", TryUseQuestRowItem)
+    iconHit:SetScript("OnLeave", GameTooltip_Hide)
+    urow.iconHit = iconHit
 
     local nameFs = bg:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     nameFs:SetPoint("LEFT", icon, "RIGHT", 5, 0)
@@ -382,12 +448,18 @@ function UI:GetQuestUseItemRow(i)
     cntFs:SetPoint("RIGHT", bg, "RIGHT", -2, 0)
     cntFs:SetJustifyH("RIGHT")
     urow.cntFs = cntFs
+    bg:SetScript("OnClick", TryUseQuestRowItem)
+    bg:SetScript("OnEnter", function(self)
+      ShowBlizzardItemTooltip(self, self.dtdItemId, self.dtdItemName)
+    end)
+    bg:SetScript("OnLeave", GameTooltip_Hide)
 
-    local useBtn = CreateFrame("Button", nil, urow)
+    --- Secure item action (Blizzard-compliant): item use must be a secure item button.
+    local useBtn = CreateFrame("Button", nil, urow, "InsecureActionButtonTemplate")
     useBtn:SetSize(C.QUEST_USE_BTN_SIZE, C.QUEST_USE_BTN_SIZE)
     useBtn:SetPoint("RIGHT", urow, "RIGHT", -2, 0)
-    useBtn:SetFrameLevel(20)
-    useBtn:RegisterForClicks("LeftButtonUp")
+    useBtn:SetFrameLevel(urow:GetFrameLevel() + 20)
+    useBtn:RegisterForClicks("AnyDown", "AnyUp")
 
     local ubIcon = useBtn:CreateTexture(nil, "ARTWORK")
     ubIcon:SetAllPoints()
@@ -421,19 +493,8 @@ function UI:GetQuestUseItemRow(i)
       end
       GameTooltip:Show()
     end)
-    useBtn:SetScript("OnClick", function(self)
-      if InCombatLockdown() then
-        print("|cfffeaa00Down to Darkmoon:|r Cannot use quest items in combat.")
-        return
-      end
-      local itemId = self.dtdItemId
-      if not itemId or not UseFirstBagItemById(itemId) then
-        print("|cfffeaa00Down to Darkmoon:|r Could not use that item from your bags.")
-      end
-    end)
     useBtn:SetScript("OnLeave", GameTooltip_Hide)
     urow.useBtn = useBtn
-    useBtn:Raise()
 
     self.poolQuestUseItem[i] = urow
   end
