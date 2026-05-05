@@ -3,6 +3,106 @@ local _, addon = ...
 local UI = addon.UI
 local C = UI.C
 
+local function CreateAddonActionButton(parent, label)
+  local b = CreateFrame("Button", nil, parent)
+  b:SetSize(C.ACTION_BTN_W, C.ACTION_BTN_H)
+  b:RegisterForClicks("LeftButtonUp")
+
+  local bg = b:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+  bg:SetVertexColor(0.11, 0.09, 0.12, 0.96)
+
+  local border = CreateFrame("Frame", nil, b, "BackdropTemplate")
+  border:SetPoint("TOPLEFT", b, "TOPLEFT", -1, 1)
+  border:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 1, -1)
+  border:SetBackdrop({
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = false,
+    tileSize = 0,
+    edgeSize = 12,
+    insets = { left = 3, right = 3, top = 3, bottom = 3 },
+  })
+  border:SetBackdropColor(0, 0, 0, 0)
+  border:SetBackdropBorderColor(0.2, 0.18, 0.14, 0.72)
+
+  local fs = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  fs:SetPoint("CENTER", 0, 0)
+  fs:SetText(label)
+  fs:SetTextColor(0.94, 0.82, 0.32)
+
+  b:SetScript("OnEnter", function(self)
+    bg:SetVertexColor(0.15, 0.12, 0.16, 0.98)
+    border:SetBackdropBorderColor(0.8, 0.68, 0.38, 0.9)
+    fs:SetTextColor(1, 0.9, 0.42)
+    if self:IsMouseButtonDown("LeftButton") then
+      fs:SetPoint("CENTER", 1, -1)
+    end
+  end)
+  b:SetScript("OnLeave", function()
+    bg:SetVertexColor(0.11, 0.09, 0.12, 0.96)
+    border:SetBackdropBorderColor(0.2, 0.18, 0.14, 0.72)
+    fs:SetTextColor(0.94, 0.82, 0.32)
+    fs:SetPoint("CENTER", 0, 0)
+  end)
+  b:SetScript("OnMouseDown", function(_, button)
+    if button == "LeftButton" then
+      bg:SetVertexColor(0.09, 0.07, 0.1, 0.98)
+      fs:SetPoint("CENTER", 1, -1)
+    end
+  end)
+  b:SetScript("OnMouseUp", function(_, button)
+    if button == "LeftButton" then
+      bg:SetVertexColor(0.15, 0.12, 0.16, 0.98)
+      fs:SetPoint("CENTER", 0, 0)
+    end
+  end)
+  b:SetScript("OnDisable", function()
+    bg:SetVertexColor(0.08, 0.08, 0.1, 0.78)
+    border:SetBackdropBorderColor(0.16, 0.16, 0.18, 0.55)
+    fs:SetTextColor(0.42, 0.42, 0.46)
+    fs:SetPoint("CENTER", 0, 0)
+  end)
+  b:SetScript("OnEnable", function()
+    bg:SetVertexColor(0.11, 0.09, 0.12, 0.96)
+    border:SetBackdropBorderColor(0.2, 0.18, 0.14, 0.72)
+    fs:SetTextColor(0.94, 0.82, 0.32)
+  end)
+
+  b.label = fs
+  return b
+end
+
+local function UseFirstBagItemById(itemId)
+  if not itemId or InCombatLockdown() then
+    return false
+  end
+  if not C_Container or type(C_Container.GetContainerNumSlots) ~= "function" or type(C_Container.GetContainerItemInfo) ~= "function" then
+    return false
+  end
+  local maxBag = type(NUM_BAG_SLOTS) == "number" and NUM_BAG_SLOTS or 4
+  for bag = 0, maxBag do
+    local slots = C_Container.GetContainerNumSlots(bag)
+    if type(slots) == "number" and slots > 0 then
+      for slot = 1, slots do
+        local info = C_Container.GetContainerItemInfo(bag, slot)
+        if info and info.itemID == itemId then
+          if type(C_Container.UseContainerItem) == "function" then
+            C_Container.UseContainerItem(bag, slot)
+          elseif type(UseContainerItem) == "function" then
+            UseContainerItem(bag, slot)
+          else
+            return false
+          end
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
 function UI:GetQuestRow(i)
   local row = self.poolQuest[i]
   if not row then
@@ -114,17 +214,23 @@ function UI:GetItemRow(i)
   if not irow then
     irow = CreateFrame("Frame", nil, self.content)
     irow:SetSize(C.CONTENT_W - 10, C.ITEM_ROW_H)
-
-    local strip = irow:CreateTexture(nil, "BACKGROUND")
-    strip:SetAllPoints()
-    strip:SetColorTexture(0.08, 0.08, 0.1, 0.55)
+    local actionW = C.ITEM_ACTION_BAR_OFFSET
+    local actionBackdrop = irow:CreateTexture(nil, "BACKGROUND")
+    actionBackdrop:SetPoint("TOPRIGHT", irow, "TOPRIGHT", 0, 0)
+    actionBackdrop:SetPoint("BOTTOMRIGHT", irow, "BOTTOMRIGHT", 0, 0)
+    actionBackdrop:SetWidth(actionW)
+    actionBackdrop:SetColorTexture(0.12, 0.12, 0.14, 1)
 
     local bg = CreateFrame("Button", nil, irow)
-    bg:SetPoint("LEFT", irow, "LEFT", 0, 0)
-    bg:SetPoint("RIGHT", irow, "RIGHT", -C.ITEM_ACTION_BAR_OFFSET, 0)
-    bg:SetHeight(C.ITEM_ROW_H)
+    bg:SetPoint("TOPLEFT", irow, "TOPLEFT", 0, 0)
+    bg:SetPoint("BOTTOMRIGHT", irow, "BOTTOMRIGHT", -actionW, 0)
     bg:RegisterForClicks("LeftButtonUp")
+    bg:SetFrameLevel(irow:GetFrameLevel() + 5)
     irow.bg = bg
+
+    local rowTint = bg:CreateTexture(nil, "BACKGROUND")
+    rowTint:SetAllPoints()
+    rowTint:SetColorTexture(0.08, 0.08, 0.1, 0.55)
 
     local bgHi = bg:CreateTexture(nil, "HIGHLIGHT")
     bgHi:SetAllPoints()
@@ -156,72 +262,86 @@ function UI:GetItemRow(i)
     end)
     bg:SetScript("OnLeave", GameTooltip_Hide)
 
-    local buy = CreateFrame("Button", nil, irow, "InsecureActionButtonTemplate, UIPanelButtonNoTooltipTemplate")
-    buy:SetSize(C.ACTION_BTN_W, C.ACTION_BTN_H)
-    buy:SetText("Buy")
+    local buy = CreateAddonActionButton(irow, "Buy")
     buy:SetPoint("RIGHT", irow, "RIGHT", -2, 0)
-    buy:SetFrameLevel(20)
-    buy:RegisterForClicks("LeftButtonUp")
+    buy:SetFrameLevel(irow:GetFrameLevel() + 20)
 
-    local pull = CreateFrame("Button", nil, irow, "InsecureActionButtonTemplate, UIPanelButtonNoTooltipTemplate")
-    pull:SetSize(C.ACTION_BTN_W, C.ACTION_BTN_H)
-    pull:SetText("Pull")
+    local pull = CreateAddonActionButton(irow, "Pull")
     pull:SetPoint("RIGHT", buy, "LEFT", -C.ACTION_BTN_GAP, 0)
-    pull:SetFrameLevel(20)
-    pull:RegisterForClicks("LeftButtonUp")
+    pull:SetFrameLevel(irow:GetFrameLevel() + 20)
     pull:SetScript("OnClick", function(self)
+      if InCombatLockdown() then
+        print("|cfffeaa00Down to Darkmoon:|r Cannot pull from the bank in combat.")
+        return
+      end
+      if not addon.QuantityAssist:IsBankInventoryAccessible() then
+        print("|cfffeaa00Down to Darkmoon:|r Open your bank to pull materials.")
+        return
+      end
       local itemId = self.dtdItemId
       local need = self.dtdNeed
       if itemId and need and need > 0 then
         addon.QuantityAssist:WithdrawFromBank(itemId, need)
       end
     end)
-    pull:SetScript("OnEnter", function(self)
+    pull:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
       GameTooltip:AddLine("Pull from bank", 1, 0.95, 0.7)
-      if self:IsEnabled() then
-        GameTooltip:AddLine("Click to withdraw up to the amount you still need.", 0.85, 0.85, 0.9, true)
-      elseif InCombatLockdown() then
+      if InCombatLockdown() then
         GameTooltip:AddLine("Unavailable in combat.", 1, 0.35, 0.35, true)
       elseif not addon.QuantityAssist:IsBankInventoryAccessible() then
-        GameTooltip:AddLine("Open your bank to withdraw (greyed until then).", 0.75, 0.75, 0.8, true)
+        GameTooltip:AddLine("Open your bank, then click to withdraw what you still need.", 0.75, 0.75, 0.8, true)
       elseif (self.dtdNeed or 0) <= 0 then
         GameTooltip:AddLine("Nothing left to withdraw for this line.", 0.55, 0.55, 0.55, true)
       else
-        GameTooltip:AddLine("No stacks of this item in your bank.", 0.9, 0.75, 0.55, true)
+        GameTooltip:AddLine("Click to withdraw up to the amount you still need.", 0.85, 0.85, 0.9, true)
+        GameTooltip:AddLine("If nothing moves, you have no stacks of this item in the bank.", 0.9, 0.75, 0.55, true)
       end
       GameTooltip:Show()
     end)
-    pull:SetScript("OnLeave", GameTooltip_Hide)
+    pull:HookScript("OnLeave", GameTooltip_Hide)
     irow.pull = pull
 
     buy:SetScript("OnClick", function(self)
+      if InCombatLockdown() then
+        print("|cfffeaa00Down to Darkmoon:|r Cannot buy in combat.")
+        return
+      end
       local idxm = self.dtdMerchIdx
       local qty = self.dtdBuyQty
       if idxm and qty and qty > 0 then
         addon.QuantityAssist:BuyFromMerchant(idxm, qty)
+        return
+      end
+      local itemKey = self.dtdItemKey
+      local merchOpen = addon.QuantityAssist:IsMerchantUIOpen()
+      if merchOpen and idxm then
+        print("|cfffeaa00Down to Darkmoon:|r Cannot buy any right now (not enough coin or vendor stock).")
+      elseif itemKey then
+        addon.Navigation:SetWaypointForItem(itemKey)
       end
     end)
-    buy:SetScript("OnEnter", function(self)
+    buy:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
       GameTooltip:AddLine("Buy from vendor", 1, 0.95, 0.7)
-      if self:IsEnabled() then
-        GameTooltip:AddLine("Click to buy up to what you can afford and still need.", 0.85, 0.85, 0.9, true)
-      elseif InCombatLockdown() then
+      if InCombatLockdown() then
         GameTooltip:AddLine("Unavailable in combat.", 1, 0.35, 0.35, true)
       elseif not addon.QuantityAssist:IsMerchantUIOpen() then
-        GameTooltip:AddLine("Open a merchant that sells this item (greyed until then).", 0.75, 0.75, 0.8, true)
+        GameTooltip:AddLine("Click to set a waypoint to a vendor that sells this item.", 0.85, 0.85, 0.9, true)
+        GameTooltip:AddLine("When a vendor window is open, click buys what you can afford.", 0.75, 0.75, 0.8, true)
       elseif (self.dtdNeed or 0) <= 0 then
         GameTooltip:AddLine("Nothing left to buy for this line.", 0.55, 0.55, 0.55, true)
       elseif (self.dtdBuyQty or 0) <= 0 and (self.dtdMerchIdx or 0) > 0 then
-        GameTooltip:AddLine("Cannot buy any right now (stock or not enough money).", 0.9, 0.65, 0.45, true)
+        GameTooltip:AddLine("Cannot buy any right now (not enough coin or vendor stock).", 0.9, 0.65, 0.45, true)
+      elseif (self.dtdMerchIdx or 0) <= 0 then
+        GameTooltip:AddLine("This merchant does not sell this item — click to route to a vendor that does.", 0.9, 0.75,
+          0.55, true)
       else
-        GameTooltip:AddLine("This merchant does not sell this item (try another vendor / waypoint).", 0.9, 0.75, 0.55,
-          true)
+        GameTooltip:AddLine("Click to buy up to what you can afford and still need.", 0.85, 0.85, 0.9, true)
       end
       GameTooltip:Show()
     end)
-    buy:SetScript("OnLeave", GameTooltip_Hide)
+    buy:HookScript("OnLeave", GameTooltip_Hide)
     irow.buy = buy
 
     self.poolItem[i] = irow
@@ -235,15 +355,16 @@ function UI:GetQuestUseItemRow(i)
     urow = CreateFrame("Frame", nil, self.content)
     urow:SetSize(C.CONTENT_W - 10, C.ITEM_ROW_H)
 
-    local strip = urow:CreateTexture(nil, "BACKGROUND")
-    strip:SetAllPoints()
-    strip:SetColorTexture(0.07, 0.09, 0.12, 0.45)
-
     local bg = CreateFrame("Frame", nil, urow)
     bg:SetPoint("LEFT", urow, "LEFT", 0, 0)
     bg:SetPoint("RIGHT", urow, "RIGHT", -C.QUEST_USE_ACTION_OFFSET, 0)
     bg:SetHeight(C.ITEM_ROW_H)
+    bg:SetFrameLevel(10)
     urow.bg = bg
+
+    local rowTint = bg:CreateTexture(nil, "BACKGROUND")
+    rowTint:SetAllPoints()
+    rowTint:SetColorTexture(0.07, 0.09, 0.12, 0.45)
 
     local icon = bg:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
@@ -262,12 +383,11 @@ function UI:GetQuestUseItemRow(i)
     cntFs:SetJustifyH("RIGHT")
     urow.cntFs = cntFs
 
-    --- InsecureActionButtonTemplate: secure `type=item` clicks + addon may SetAttribute from tainted Refresh (Lucky's Grab-bag uses plain SecureActionButtonTemplate + item name from bags).
-    local useBtn = CreateFrame("Button", nil, urow, "InsecureActionButtonTemplate")
+    local useBtn = CreateFrame("Button", nil, urow)
     useBtn:SetSize(C.QUEST_USE_BTN_SIZE, C.QUEST_USE_BTN_SIZE)
     useBtn:SetPoint("RIGHT", urow, "RIGHT", -2, 0)
     useBtn:SetFrameLevel(20)
-    useBtn:RegisterForClicks("AnyDown", "AnyUp")
+    useBtn:RegisterForClicks("LeftButtonUp")
 
     local ubIcon = useBtn:CreateTexture(nil, "ARTWORK")
     ubIcon:SetAllPoints()
@@ -301,8 +421,19 @@ function UI:GetQuestUseItemRow(i)
       end
       GameTooltip:Show()
     end)
+    useBtn:SetScript("OnClick", function(self)
+      if InCombatLockdown() then
+        print("|cfffeaa00Down to Darkmoon:|r Cannot use quest items in combat.")
+        return
+      end
+      local itemId = self.dtdItemId
+      if not itemId or not UseFirstBagItemById(itemId) then
+        print("|cfffeaa00Down to Darkmoon:|r Could not use that item from your bags.")
+      end
+    end)
     useBtn:SetScript("OnLeave", GameTooltip_Hide)
     urow.useBtn = useBtn
+    useBtn:Raise()
 
     self.poolQuestUseItem[i] = urow
   end

@@ -59,6 +59,7 @@ function UI:CreateMainFrame()
 
   local border = CreateFrame("Frame", nil, f, "BackdropTemplate")
   border:SetFrameLevel(f:GetFrameLevel() - 1)
+  border:EnableMouse(false)
   border:SetPoint("TOPLEFT", f, "TOPLEFT", -3, 3)
   border:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 3, -3)
   border:SetBackdrop({

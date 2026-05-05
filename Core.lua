@@ -430,36 +430,6 @@ function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
   if still <= 0 then
     return false
   end
-  if not C_QuestLog or type(C_QuestLog.IsOnQuest) ~= "function" or not C_QuestLog.IsOnQuest(questId) then
-    return true
-  end
-  local ok, objs = pcall(C_QuestLog.GetQuestObjectives, questId)
-  if not ok or type(objs) ~= "table" then
-    return true
-  end
-  local have = self:GetItemCountCompat(itemId)
-  local anyQtyProgress = false
-  local hasQtyObjective = false
-  local allQtyDone = true
-  for _, o in ipairs(objs) do
-    local nr = o.numRequired
-    if type(nr) == "number" and nr > 0 then
-      hasQtyObjective = true
-      local nf = o.numFulfilled or 0
-      if nf > 0 or o.finished then
-        anyQtyProgress = true
-      end
-      if not o.finished and nf < nr then
-        allQtyDone = false
-      end
-    end
-  end
-  if hasQtyObjective and allQtyDone then
-    return false
-  end
-  if anyQtyProgress and have == 0 then
-    return false
-  end
   return true
 end
 
@@ -493,6 +463,8 @@ eventFrame:RegisterEvent("MERCHANT_CLOSED")
 eventFrame:RegisterEvent("MERCHANT_UPDATE")
 eventFrame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
 eventFrame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
+eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 eventFrame:SetScript("OnEvent", function(_, event, arg1)
   if event == "ADDON_LOADED" and arg1 == addonName then

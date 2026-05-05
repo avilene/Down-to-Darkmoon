@@ -22,6 +22,8 @@ addon.UI.C = {
   WIDTH = WIDTH,
   GAP_TITLE_TO_BODY = 10,
   FRAME_BOTTOM_PAD = 4,
+  --- Space between the quest list and the “See you…” line when everything is done/ignored.
+  ALL_DONE_GAP_TOP = 12,
   CONTENT_W = WIDTH - 2 * PAD,
   COLOR_TITLE = { 1, 0.85, 0.35 },
   COLOR_ITEM_NAME = { 0.92, 0.92, 0.96 },

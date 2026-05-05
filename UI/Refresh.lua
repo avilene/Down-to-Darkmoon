@@ -156,12 +156,7 @@ function UI:Refresh()
               local ub = urow.useBtn
               ub.dtdQuestId = q.questId
               ub.dtdItemId = itemId
-              if not combat then
-                ub:SetAttribute("type", nil)
-                ub:SetAttribute("item", nil)
-                ub:SetAttribute("type", "item")
-                ub:SetAttribute("item", bagName)
-              end
+              ub:Enable()
               if bagIcon and type(bagIcon) == "number" then
                 ub.iconTex:SetTexture(bagIcon)
               else
@@ -209,20 +204,16 @@ function UI:Refresh()
             local midx = addon.QuantityAssist:FindMerchantIndex(itemId)
             irow.buy.dtdMerchIdx = midx
             irow.buy.dtdBuyQty = midx and addon.QuantityAssist:GetAffordableBuyQty(midx, still) or 0
+            irow.buy.dtdItemKey = itemKey
+            irow.buy.dtdNeed = still
 
-            local bankOpen = addon.QuantityAssist:IsBankInventoryAccessible()
-            local merchOpen = addon.QuantityAssist:IsMerchantUIOpen()
-            local hasBankStacks = bankOpen and #addon.QuantityAssist:ScanBankForItem(itemId) > 0
-            local combat = InCombatLockdown()
-
+            --- Pooled frames can keep disabled state from earlier paints; always restore clickability.
+            irow.bg:Enable()
+            irow.pull:Enable()
+            irow.buy:Enable()
             if still > 0 then
               irow.pull:Show()
               irow.buy:Show()
-              local canPull = bankOpen and hasBankStacks and still > 0 and not combat
-              local buyQty = irow.buy.dtdBuyQty or 0
-              local canBuy = merchOpen and still > 0 and midx ~= nil and buyQty > 0 and not combat
-              irow.pull:SetEnabled(canPull)
-              irow.buy:SetEnabled(canBuy)
             else
               irow.pull:Hide()
               irow.buy:Hide()
@@ -253,7 +244,7 @@ function UI:Refresh()
     local allProfessionDone = addon:AreAllDarkmoonProfessionQuestsDoneForCharacter()
     if allProfessionDone and self.allDoneBanner then
       self.allDoneBanner:ClearAllPoints()
-      self.allDoneBanner:SetPoint("TOPLEFT", self.content, "TOPLEFT", 6, -y - 2)
+      self.allDoneBanner:SetPoint("TOPLEFT", self.content, "TOPLEFT", 6, -y - C.ALL_DONE_GAP_TOP)
       local when = addon:GetNextDarkmoonFaireStartDateString()
       if when then
         self.allDoneBanner:SetText("See you on |cffffffff" .. when .. "|r for the next Faire!")
@@ -263,7 +254,7 @@ function UI:Refresh()
       self.allDoneBanner:Show()
       --- Reserve only the measured footer height (fixed 34–36px left a large empty gap).
       local bannerH = math.max(self.allDoneBanner:GetStringHeight(), 1)
-      y = y + 2 + bannerH + 4
+      y = y + C.ALL_DONE_GAP_TOP + bannerH + 4
     elseif self.allDoneBanner then
       self.allDoneBanner:Hide()
     end
