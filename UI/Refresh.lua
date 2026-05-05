@@ -88,6 +88,25 @@ function UI:Refresh()
 
       local completed = addon:IsProfessionQuestCompleted(q.questId)
       local ignored = addon:IsProfessionQuestIgnored(q.questId)
+      local objectiveCompleted = false
+      if not completed and C_QuestLog and type(C_QuestLog.IsOnQuest) == "function" and C_QuestLog.IsOnQuest(q.questId)
+        and type(C_QuestLog.GetQuestObjectives) == "function" then
+        local ok, objs = pcall(C_QuestLog.GetQuestObjectives, q.questId)
+        if ok and type(objs) == "table" then
+          local hasObj = false
+          local allDone = true
+          for _, o in ipairs(objs) do
+            if o and type(o.finished) == "boolean" then
+              hasObj = true
+              if not o.finished then
+                allDone = false
+                break
+              end
+            end
+          end
+          objectiveCompleted = hasObj and allDone
+        end
+      end
       row.qBtn.questCompleted = completed
       row.qBtn.dtdIgnored = ignored
       if row.qBtn.profIcon then
@@ -132,7 +151,7 @@ function UI:Refresh()
         end
       end
 
-      if q.useQuestItems and addon:ShouldShowQuestUseItemRows(q.questId, ignored, completed) then
+      if q.useQuestItems and not objectiveCompleted and addon:ShouldShowQuestUseItemRows(q.questId, ignored, completed) then
         for _, udef in ipairs(q.useQuestItems) do
           local itemId = udef.itemId
           if itemId then
@@ -189,7 +208,7 @@ function UI:Refresh()
       end
 
       for _, stack in ipairs(q.requiredStacks) do
-        if not completed then
+        if not completed and not objectiveCompleted then
           local def = addon.Data.ITEMS[stack.itemKey]
           if def and addon:ShouldShowShoppingIngredientRow(q.questId, def.itemId, stack.count) then
             ii = ii + 1

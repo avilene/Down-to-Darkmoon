@@ -419,6 +419,29 @@ function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
     return false
   end
   local qdef = self:GetProfessionQuestDef(questId)
+  if qdef and type(qdef.useQuestItems) == "table" and type(qdef.requiredStacks) == "table" then
+    local hasUseItemInBags = false
+    for _, udef in ipairs(qdef.useQuestItems) do
+      local uid = udef and udef.itemId
+      if type(uid) == "number" and self:GetItemCountCompat(uid) > 0 then
+        hasUseItemInBags = true
+        break
+      end
+    end
+    if hasUseItemInBags then
+      local allRequiredSatisfied = true
+      for _, stack in ipairs(qdef.requiredStacks) do
+        local def = self.Data and self.Data.ITEMS and self.Data.ITEMS[stack.itemKey]
+        if def and def.itemId and self.QuantityAssist:GetStillNeed(def.itemId, stack.count) > 0 then
+          allRequiredSatisfied = false
+          break
+        end
+      end
+      if allRequiredSatisfied then
+        return false
+      end
+    end
+  end
   if qdef and type(qdef.hideRequiredStacksWhenHaveItemIds) == "table" then
     for _, uid in ipairs(qdef.hideRequiredStacksWhenHaveItemIds) do
       if type(uid) == "number" and self:GetItemCountCompat(uid) > 0 then
