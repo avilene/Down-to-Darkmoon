@@ -28,5 +28,8 @@ Data/Retail.lua
 VendorRouting.lua
 Navigation.lua
 QuantityAssist.lua
-UI.lua
+UI/Constants.lua
+UI/MainFrame.lua
+UI/Rows.lua
+UI/Refresh.lua
 Minimap.lua

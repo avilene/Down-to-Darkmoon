@@ -49,6 +49,27 @@ function MinimapMod:Init()
       if addon:IsDarkmoonActive() then
         tooltip:AddLine("Down to Darkmoon", 1, 1, 1)
         tooltip:AddLine("Click to toggle the addon.", 0.75, 0.85, 1, true)
+        if addon:AreAllDarkmoonProfessionQuestsDoneForCharacter() then
+          tooltip:AddLine(" ")
+          local when = addon:GetNextDarkmoonFaireStartDateString()
+          if when then
+            tooltip:AddLine(
+              "See you on |cffffffff" .. when .. "|r for the next Faire!",
+              0.55,
+              1,
+              0.65,
+              true
+            )
+          else
+            tooltip:AddLine(
+              "See you at the next Faire! (Open the calendar once if the date doesn’t show.)",
+              0.55,
+              1,
+              0.65,
+              true
+            )
+          end
+        end
       else
         tooltip:AddLine("Darkmoon Not Active", 1, 0.35, 0.35)
       end

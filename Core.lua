@@ -6,6 +6,8 @@ local defaults = {
   point = "CENTER",
   x = 0,
   y = 100,
+  --- Main panel scale (0.5–1.5); see /dtdm scale
+  scale = 1,
   hidden = true,
   --- When true, waypoint/pin attempts log to chat (/dtdm navdebug).
   debugNavigation = false,
@@ -333,6 +335,26 @@ function addon:IsProfessionQuestCompleted(questId)
   return false
 end
 
+--- True when this character has at least one tracked profession and every matching Darkmoon quest is completed or ignored (same rule as the panel “See you…” banner).
+function addon:AreAllDarkmoonProfessionQuestsDoneForCharacter()
+  if not self.Data or not self.Data.QUESTS then
+    return false
+  end
+  local skill = self:PlayerSkillLineSet()
+  local any = false
+  for _, q in ipairs(self.Data.QUESTS) do
+    if skill[q.skillLineId] then
+      any = true
+      local completed = self:IsProfessionQuestCompleted(q.questId)
+      local ignored = self:IsProfessionQuestIgnored(q.questId)
+      if not completed and not ignored then
+        return false
+      end
+    end
+  end
+  return any
+end
+
 function addon:GetProfessionQuestDef(questId)
   if not questId or not self.Data or not self.Data.QUESTS then
     return nil
@@ -504,13 +526,33 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     SLASH_DOWNTO_DARKMOON1 = "/dtdm"
     SLASH_DOWNTO_DARKMOON2 = "/downtodarkmoon"
     SlashCmdList["DOWNTO_DARKMOON"] = function(msg)
-      local cmd = strtrim(msg or ""):lower()
+      local raw = strtrim(msg or "")
+      local cmd = raw:lower()
       if cmd == "navdebug" or cmd == "pins" or cmd == "waypoints" then
         DownToDarkmoonDB.debugNavigation = not DownToDarkmoonDB.debugNavigation
         print(
           "|cfffeaa00Down to Darkmoon:|r Waypoint / map pin debug:",
           DownToDarkmoonDB.debugNavigation and "|cff33ff33ON|r" or "|cffff5555OFF|r",
           "(logs pin attempts to chat; toggle with /dtdm navdebug)"
+        )
+        return
+      end
+      if cmd:sub(1, 5) == "scale" then
+        local numStr = raw:lower():match("^scale%s+([%d%.]+)")
+        if cmd == "scale" or numStr == nil or numStr == "" then
+          print("|cfffeaa00Down to Darkmoon:|r Usage: |cffffffff/dtdm scale 0.85|r  (window scale, range |cffffffff0.5–1.5|r)")
+          return
+        end
+        local v = tonumber(numStr)
+        if not v then
+          print("|cfffeaa00Down to Darkmoon:|r Could not parse scale; example: |cffffffff/dtdm scale 1|r")
+          return
+        end
+        v = math.max(0.5, math.min(1.5, v))
+        DownToDarkmoonDB.scale = v
+        addon.UI:ApplySavedScale()
+        print(
+          ("|cfffeaa00Down to Darkmoon:|r Panel scale set to |cffffffff%.2f|r (saved)."):format(v)
         )
         return
       end
@@ -521,6 +563,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
   if event == "PLAYER_LOGIN" then
     addon.Calendar:ScheduleRefresh(0)
     addon.UI:ApplySavedPosition()
+    addon.UI:ApplySavedScale()
     if addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
       addon.UI:Refresh()
     end
