@@ -1,4 +1,9 @@
 local addonName, addon = ...
+local L = setmetatable({}, {
+  __index = function(_, k)
+    return (addon.L and addon.L[k]) or k
+  end,
+})
 
 DownToDarkmoon = addon
 
@@ -136,6 +141,29 @@ function addon:GetItemNameByIDCompat(itemId)
     local name = select(1, GetItemInfo(itemId))
     if type(name) == "string" and name ~= "" then
       return name
+    end
+  end
+  return nil
+end
+
+--- Localized quest title by quest id (fallback to nil when unavailable/cached yet).
+function addon:GetQuestTitleByIDCompat(questId)
+  if not questId then
+    return nil
+  end
+  if C_QuestLog and type(C_QuestLog.GetTitleForQuestID) == "function" then
+    local ok, title = pcall(C_QuestLog.GetTitleForQuestID, questId)
+    if ok and type(title) == "string" and title ~= "" then
+      return title
+    end
+  end
+  if type(GetQuestLogTitle) == "function" and C_QuestLog and type(C_QuestLog.GetLogIndexForQuestID) == "function" then
+    local idx = C_QuestLog.GetLogIndexForQuestID(questId)
+    if idx then
+      local ok, title = pcall(GetQuestLogTitle, idx)
+      if ok and type(title) == "string" and title ~= "" then
+        return title
+      end
     end
   end
   return nil
@@ -526,28 +554,28 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
       if cmd == "navdebug" or cmd == "pins" or cmd == "waypoints" then
         DownToDarkmoonDB.debugNavigation = not DownToDarkmoonDB.debugNavigation
         print(
-          "|cfffeaa00Down to Darkmoon:|r Waypoint / map pin debug:",
-          DownToDarkmoonDB.debugNavigation and "|cff33ff33ON|r" or "|cffff5555OFF|r",
-          "(logs pin attempts to chat; toggle with /dtdm navdebug)"
+          L.SLASH_NAVDEBUG,
+          DownToDarkmoonDB.debugNavigation and L.SLASH_ON or L.SLASH_OFF,
+          L.SLASH_NAVDEBUG_HINT
         )
         return
       end
       if cmd:sub(1, 5) == "scale" then
         local numStr = raw:lower():match("^scale%s+([%d%.]+)")
         if cmd == "scale" or numStr == nil or numStr == "" then
-          print("|cfffeaa00Down to Darkmoon:|r Usage: |cffffffff/dtdm scale 0.85|r  (window scale, range |cffffffff0.5–1.5|r)")
+          print(L.SLASH_SCALE_USAGE)
           return
         end
         local v = tonumber(numStr)
         if not v then
-          print("|cfffeaa00Down to Darkmoon:|r Could not parse scale; example: |cffffffff/dtdm scale 1|r")
+          print(L.SLASH_SCALE_PARSE)
           return
         end
         v = math.max(0.5, math.min(1.5, v))
         DownToDarkmoonDB.scale = v
         addon.UI:ApplySavedScale()
         print(
-          ("|cfffeaa00Down to Darkmoon:|r Panel scale set to |cffffffff%.2f|r (saved)."):format(v)
+          L.SLASH_SCALE_SET:format(v)
         )
         return
       end

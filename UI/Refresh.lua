@@ -2,6 +2,7 @@ local _, addon = ...
 
 local UI = addon.UI
 local C = UI.C
+local L = addon.L
 
 local function colorCount(fs, have, need)
   if have >= need then
@@ -43,9 +44,9 @@ function UI:Refresh()
     self.content:Hide()
     local when = addon:GetNextDarkmoonFaireStartDateString()
     if when then
-      self.inactiveBanner:SetText("See you on |cffffffff" .. when .. "|r for the next Faire!")
+      self.inactiveBanner:SetText(L.PANEL_SEE_YOU_ON:format(when))
     else
-      self.inactiveBanner:SetText("See you at the next Faire! (Open the calendar once if the date doesn’t show.)")
+      self.inactiveBanner:SetText(L.PANEL_SEE_YOU_NEXT)
     end
     self.inactiveBanner:Show()
     local ih = math.max(self.inactiveBanner:GetStringHeight(), 1)
@@ -68,6 +69,7 @@ function UI:Refresh()
   for _, q in ipairs(addon.Data.QUESTS) do
     if skill[q.skillLineId] then
       any = true
+      local questLabel = addon:GetQuestTitleByIDCompat(q.questId) or q.name
       qi = qi + 1
       local row = self:GetQuestRow(qi)
       row:ClearAllPoints()
@@ -80,7 +82,7 @@ function UI:Refresh()
           row.stripe:SetColorTexture(1, 1, 1, 0)
         end
       end
-      row.qBtn.qName = q.name
+      row.qBtn.qName = questLabel
       row.qBtn.dtdQuestId = q.questId
       row.qBtn.dtdProfession = q.profession
       row.qBtn.dtdSkillLineId = q.skillLineId
@@ -118,16 +120,18 @@ function UI:Refresh()
       end
       if ignored then
         if completed then
-          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " - completed (ignored)|r", q.profession))
+          row.qBtn.qtext:SetText(
+            appendPoiCoordHint("|cff888888" .. questLabel .. " - " .. L.PANEL_COMPLETED_IGNORED .. "|r", q.profession))
         else
-          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. q.name .. " (ignored)|r", q.profession))
+          row.qBtn.qtext:SetText(appendPoiCoordHint("|cff888888" .. questLabel .. " (" .. L.PANEL_IGNORED .. ")|r", q.profession))
         end
       elseif completed then
-        row.qBtn.qtext:SetText(appendPoiCoordHint("|cff33ff33" .. q.name .. " - completed|r", q.profession))
+        row.qBtn.qtext:SetText(appendPoiCoordHint("|cff33ff33" .. questLabel .. " - " .. L.PANEL_COMPLETED .. "|r", q.profession))
       elseif C_QuestLog.IsOnQuest(q.questId) then
-        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name, q.profession))
+        row.qBtn.qtext:SetText(appendPoiCoordHint(questLabel, q.profession))
       else
-        row.qBtn.qtext:SetText(appendPoiCoordHint(q.name .. " |cffff5555(not on quest)|r", q.profession))
+        row.qBtn.qtext:SetText(
+          appendPoiCoordHint(questLabel .. " |cffff5555(" .. L.PANEL_NOT_ON_QUEST .. ")|r", q.profession))
       end
 
       y = y + C.QUEST_ROW_H + C.ROW_GAP
@@ -165,7 +169,7 @@ function UI:Refresh()
               urow:SetPoint("TOPLEFT", self.content, "TOPLEFT", 10, -y)
               urow:Show()
 
-              local name = addon:GetItemNameByIDCompat(itemId) or ("Item " .. tostring(itemId))
+              local name = addon:GetItemNameByIDCompat(itemId) or L.ITEM_FALLBACK:format(tostring(itemId))
               urow.nameFs:SetText(name)
               addon:SetItemIconTexture(urow.icon, itemId)
               if urow.bg then
@@ -176,7 +180,7 @@ function UI:Refresh()
                 urow.iconHit.dtdItemId = itemId
                 urow.iconHit.dtdItemName = name
               end
-              urow.cntFs:SetText(("%d in bags"):format(have))
+              urow.cntFs:SetText(L.COUNT_IN_BAGS:format(have))
               urow.cntFs:SetTextColor(0.65, 0.85, 1)
 
               local combat = InCombatLockdown()
@@ -223,16 +227,17 @@ function UI:Refresh()
             local have = addon:GetItemCountCompat(itemId)
             local still = addon.QuantityAssist:GetStillNeed(itemId, need)
 
-            irow.nameFs:SetText(def.name)
+            local ingredientName = addon:GetItemNameByIDCompat(itemId) or def.name
+            irow.nameFs:SetText(ingredientName)
             addon:SetItemIconTexture(irow.icon, itemId)
             if irow.iconHit then
               irow.iconHit.dtdItemId = itemId
-              irow.iconHit.dtdItemName = def.name
+              irow.iconHit.dtdItemName = ingredientName
             end
             irow.cntFs:SetText(("%d/%d"):format(math.min(have, need), need))
             colorCount(irow.cntFs, have, need)
 
-            irow.bg.dtdItemName = def.name
+            irow.bg.dtdItemName = ingredientName
             irow.bg:SetScript("OnClick", function()
               addon.Navigation:SetWaypointForItem(itemKey)
             end)
@@ -272,7 +277,7 @@ function UI:Refresh()
     local er = self:GetEmptyRow()
     er:ClearAllPoints()
     er:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -4)
-    er.fs:SetText("No Darkmoon profession quests to show. Train a profession or use a character with one.")
+    er.fs:SetText(L.PANEL_NO_QUESTS)
     er:Show()
     y = 48
     if self.allDoneBanner then
@@ -285,9 +290,9 @@ function UI:Refresh()
       self.allDoneBanner:SetPoint("TOPLEFT", self.content, "TOPLEFT", 6, -y - C.ALL_DONE_GAP_TOP)
       local when = addon:GetNextDarkmoonFaireStartDateString()
       if when then
-        self.allDoneBanner:SetText("See you on |cffffffff" .. when .. "|r for the next Faire!")
+        self.allDoneBanner:SetText(L.PANEL_SEE_YOU_ON:format(when))
       else
-        self.allDoneBanner:SetText("See you at the next Faire! (Open the calendar once if the date doesn’t show.)")
+        self.allDoneBanner:SetText(L.PANEL_SEE_YOU_NEXT)
       end
       self.allDoneBanner:Show()
       --- Reserve only the measured footer height (fixed 34–36px left a large empty gap).

@@ -1,4 +1,5 @@
 local addonName, addon = ...
+local L = addon.L
 
 local QuantityAssist = {}
 addon.QuantityAssist = QuantityAssist
@@ -187,7 +188,7 @@ end
 ---Secure execution path: withdraw up to `take` from first matching bank stack into bags.
 function QuantityAssist:WithdrawFromBank(itemId, take)
   if InCombatLockdown() then
-    print("|cfffeaa00Down to Darkmoon:|r Cannot withdraw in combat.")
+    print(L.MSG_CANNOT_WITHDRAW_COMBAT)
     return false
   end
   if not self:IsBankInventoryAccessible() then
@@ -198,12 +199,12 @@ function QuantityAssist:WithdrawFromBank(itemId, take)
   end
   local stacks = self:ScanBankForItem(itemId)
   if #stacks == 0 then
-    print("|cfffeaa00Down to Darkmoon:|r No matching stacks in bank.")
+    print(L.MSG_NO_BANK_STACKS)
     return false
   end
   local bagSlot, invSlot = findFirstEmptyInventorySlot()
   if not bagSlot then
-    print("|cfffeaa00Down to Darkmoon:|r No empty bag space.")
+    print(L.MSG_NO_BAG_SPACE)
     return false
   end
   local stack = stacks[1]
@@ -278,7 +279,7 @@ end
 
 function QuantityAssist:BuyFromMerchant(merchantIndex, qty)
   if InCombatLockdown() then
-    print("|cfffeaa00Down to Darkmoon:|r Cannot buy in combat.")
+    print(L.MSG_CANNOT_BUY_COMBAT)
     return false
   end
   if not self:IsMerchantUIOpen() or not merchantIndex or not qty or qty <= 0 then

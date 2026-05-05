@@ -2,6 +2,7 @@ local _, addon = ...
 
 local UI = addon.UI
 local C = UI.C
+local L = addon.L
 
 function UI:ApplySavedPosition()
   local f = self.mainFrame
@@ -109,7 +110,7 @@ function UI:CreateMainFrame()
   title:SetPoint("RIGHT", titleBar, "RIGHT", -40, 0)
   title:SetJustifyH("LEFT")
   title:SetTextColor(C.COLOR_TITLE[1], C.COLOR_TITLE[2], C.COLOR_TITLE[3])
-  title:SetText("Down to Darkmoon")
+  title:SetText(L.PANEL_TITLE)
 
   --- Lowercase “x” only — ASCII, no OUTLINE flag (outline + large size stretched the glyph vertically).
   local closeBtn = CreateFrame("Button", nil, titleBar)

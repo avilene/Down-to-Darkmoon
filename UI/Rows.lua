@@ -2,6 +2,7 @@ local _, addon = ...
 
 local UI = addon.UI
 local C = UI.C
+local L = addon.L
 
 local function ShowBlizzardItemTooltip(owner, itemId, fallbackName)
   if not owner then
@@ -22,7 +23,7 @@ local function ShowBlizzardItemTooltip(owner, itemId, fallbackName)
       return
     end
   end
-  GameTooltip:AddLine(fallbackName or ("Item " .. tostring(itemId or "?")), 1, 1, 1)
+  GameTooltip:AddLine(fallbackName or L.ITEM_FALLBACK:format(tostring(itemId or "?")), 1, 1, 1)
   GameTooltip:Show()
 end
 
@@ -130,12 +131,12 @@ end
 
 local function TryUseQuestRowItem(self)
   if InCombatLockdown() then
-    print("|cfffeaa00Down to Darkmoon:|r Cannot use quest items in combat.")
+    print(L.MSG_CANNOT_USE_COMBAT)
     return
   end
   local itemId = self and self.dtdItemId
   if not itemId or not UseFirstBagItemById(itemId) then
-    print("|cfffeaa00Down to Darkmoon:|r Could not use that item from your bags.")
+    print(L.MSG_CANNOT_USE_BAGS)
   end
 end
 
@@ -192,20 +193,20 @@ function UI:GetQuestRow(i)
         1
       )
       if self.dtdIgnored then
-        GameTooltip:AddLine("Ignored on this character: shopping / Pull / Buy hidden.", 0.55, 0.55, 0.6)
-        GameTooltip:AddLine("Right-click: track again.", 0.65, 0.85, 1)
+        GameTooltip:AddLine(L.TIP_IGNORED_HIDDEN, 0.55, 0.55, 0.6)
+        GameTooltip:AddLine(L.TIP_RIGHT_CLICK_TRACK, 0.65, 0.85, 1)
       elseif self.questCompleted then
-        GameTooltip:AddLine("Completed for this Darkmoon Faire.", 0.25, 1, 0.35)
-        GameTooltip:AddLine("Right-click: ignore for this character (grey out, hide shopping).", 0.65, 0.85, 1)
+        GameTooltip:AddLine(L.TIP_COMPLETED_THIS_FAIRE, 0.25, 1, 0.35)
+        GameTooltip:AddLine(L.TIP_RIGHT_CLICK_IGNORE, 0.65, 0.85, 1)
       else
         if addon.Navigation:IsTomTomLoaded() then
-          GameTooltip:AddLine("Click: waypoint on Darkmoon Island.", 0.7, 0.9, 1)
+          GameTooltip:AddLine(L.TIP_CLICK_WAYPOINT_ISLAND, 0.7, 0.9, 1)
         else
           local prof = self.dtdProfession
           local p = prof and addon.Data.POIS and addon.Data.POIS[prof]
           if p and type(p.x) == "number" and type(p.y) == "number" then
             GameTooltip:AddLine(
-              ("Darkmoon map pin: |cffffffff%.1f, %.1f|r (install TomTom for arrows)."):format(
+              L.TIP_MAP_PIN:format(
                 p.x,
                 p.y
               ),
@@ -215,11 +216,11 @@ function UI:GetQuestRow(i)
               true
             )
           else
-            GameTooltip:AddLine("Install TomTom for in-game waypoints, or use the map % on the quest line.", 0.7, 0.9, 1,
+            GameTooltip:AddLine(L.TIP_INSTALL_TOMTOM, 0.7, 0.9, 1,
               true)
           end
         end
-        GameTooltip:AddLine("Right-click: ignore quest on this character.", 0.65, 0.85, 1)
+        GameTooltip:AddLine(L.TIP_RIGHT_CLICK_IGNORE_QUEST, 0.65, 0.85, 1)
       end
       GameTooltip:Show()
     end)
@@ -301,25 +302,25 @@ function UI:GetItemRow(i)
     bg:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
       GameTooltip:AddLine(self.dtdItemName or "", 1, 1, 1)
-      GameTooltip:AddLine("Click: closest vendor waypoint.", 0.7, 0.9, 1)
+      GameTooltip:AddLine(L.TIP_VENDOR_WAYPOINT, 0.7, 0.9, 1)
       GameTooltip:Show()
     end)
     bg:SetScript("OnLeave", GameTooltip_Hide)
 
-    local buy = CreateAddonActionButton(irow, "Buy")
+    local buy = CreateAddonActionButton(irow, L.BTN_BUY)
     buy:SetPoint("RIGHT", irow, "RIGHT", -2, 0)
     buy:SetFrameLevel(irow:GetFrameLevel() + 20)
 
-    local pull = CreateAddonActionButton(irow, "Pull")
+    local pull = CreateAddonActionButton(irow, L.BTN_PULL)
     pull:SetPoint("RIGHT", buy, "LEFT", -C.ACTION_BTN_GAP, 0)
     pull:SetFrameLevel(irow:GetFrameLevel() + 20)
     pull:SetScript("OnClick", function(self)
       if InCombatLockdown() then
-        print("|cfffeaa00Down to Darkmoon:|r Cannot pull from the bank in combat.")
+        print(L.MSG_CANNOT_PULL_COMBAT)
         return
       end
       if not addon.QuantityAssist:IsBankInventoryAccessible() then
-        print("|cfffeaa00Down to Darkmoon:|r Open your bank to pull materials.")
+        print(L.MSG_OPEN_BANK_PULL)
         return
       end
       local itemId = self.dtdItemId
@@ -330,16 +331,16 @@ function UI:GetItemRow(i)
     end)
     pull:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-      GameTooltip:AddLine("Pull from bank", 1, 0.95, 0.7)
+      GameTooltip:AddLine(L.TIP_PULL_HEADER, 1, 0.95, 0.7)
       if InCombatLockdown() then
-        GameTooltip:AddLine("Unavailable in combat.", 1, 0.35, 0.35, true)
+        GameTooltip:AddLine(L.TIP_UNAVAILABLE_COMBAT, 1, 0.35, 0.35, true)
       elseif not addon.QuantityAssist:IsBankInventoryAccessible() then
-        GameTooltip:AddLine("Open your bank, then click to withdraw what you still need.", 0.75, 0.75, 0.8, true)
+        GameTooltip:AddLine(L.TIP_PULL_OPEN_BANK, 0.75, 0.75, 0.8, true)
       elseif (self.dtdNeed or 0) <= 0 then
-        GameTooltip:AddLine("Nothing left to withdraw for this line.", 0.55, 0.55, 0.55, true)
+        GameTooltip:AddLine(L.TIP_PULL_NOTHING_LEFT, 0.55, 0.55, 0.55, true)
       else
-        GameTooltip:AddLine("Click to withdraw up to the amount you still need.", 0.85, 0.85, 0.9, true)
-        GameTooltip:AddLine("If nothing moves, you have no stacks of this item in the bank.", 0.9, 0.75, 0.55, true)
+        GameTooltip:AddLine(L.TIP_PULL_WITHDRAW, 0.85, 0.85, 0.9, true)
+        GameTooltip:AddLine(L.TIP_PULL_NONE_IN_BANK, 0.9, 0.75, 0.55, true)
       end
       GameTooltip:Show()
     end)
@@ -348,7 +349,7 @@ function UI:GetItemRow(i)
 
     buy:SetScript("OnClick", function(self)
       if InCombatLockdown() then
-        print("|cfffeaa00Down to Darkmoon:|r Cannot buy in combat.")
+        print(L.MSG_CANNOT_BUY_COMBAT)
         return
       end
       local idxm = self.dtdMerchIdx
@@ -360,28 +361,28 @@ function UI:GetItemRow(i)
       local itemKey = self.dtdItemKey
       local merchOpen = addon.QuantityAssist:IsMerchantUIOpen()
       if merchOpen and idxm then
-        print("|cfffeaa00Down to Darkmoon:|r Cannot buy any right now (not enough coin or vendor stock).")
+        print(L.MSG_CANNOT_BUY_NOW)
       elseif itemKey then
         addon.Navigation:SetWaypointForItem(itemKey)
       end
     end)
     buy:HookScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-      GameTooltip:AddLine("Buy from vendor", 1, 0.95, 0.7)
+      GameTooltip:AddLine(L.TIP_BUY_HEADER, 1, 0.95, 0.7)
       if InCombatLockdown() then
-        GameTooltip:AddLine("Unavailable in combat.", 1, 0.35, 0.35, true)
+        GameTooltip:AddLine(L.TIP_UNAVAILABLE_COMBAT, 1, 0.35, 0.35, true)
       elseif not addon.QuantityAssist:IsMerchantUIOpen() then
-        GameTooltip:AddLine("Click to set a waypoint to a vendor that sells this item.", 0.85, 0.85, 0.9, true)
-        GameTooltip:AddLine("When a vendor window is open, click buys what you can afford.", 0.75, 0.75, 0.8, true)
+        GameTooltip:AddLine(L.TIP_BUY_SET_WAYPOINT, 0.85, 0.85, 0.9, true)
+        GameTooltip:AddLine(L.TIP_BUY_WHEN_VENDOR_OPEN, 0.75, 0.75, 0.8, true)
       elseif (self.dtdNeed or 0) <= 0 then
-        GameTooltip:AddLine("Nothing left to buy for this line.", 0.55, 0.55, 0.55, true)
+        GameTooltip:AddLine(L.TIP_BUY_NOTHING_LEFT, 0.55, 0.55, 0.55, true)
       elseif (self.dtdBuyQty or 0) <= 0 and (self.dtdMerchIdx or 0) > 0 then
-        GameTooltip:AddLine("Cannot buy any right now (not enough coin or vendor stock).", 0.9, 0.65, 0.45, true)
+        GameTooltip:AddLine(L.TIP_BUY_CANNOT, 0.9, 0.65, 0.45, true)
       elseif (self.dtdMerchIdx or 0) <= 0 then
-        GameTooltip:AddLine("This merchant does not sell this item — click to route to a vendor that does.", 0.9, 0.75,
+        GameTooltip:AddLine(L.TIP_BUY_VENDOR_NO_SELL, 0.9, 0.75,
           0.55, true)
       else
-        GameTooltip:AddLine("Click to buy up to what you can afford and still need.", 0.85, 0.85, 0.9, true)
+        GameTooltip:AddLine(L.TIP_BUY_CAN, 0.85, 0.85, 0.9, true)
       end
       GameTooltip:Show()
     end)
@@ -473,18 +474,18 @@ function UI:GetQuestUseItemRow(i)
 
     local ubLab = useBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     ubLab:SetPoint("BOTTOM", 0, 1)
-    ubLab:SetText("Use")
+    ubLab:SetText(L.BTN_USE)
     ubLab:SetAlpha(0.85)
     useBtn.useLabel = ubLab
 
     useBtn:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-      GameTooltip:AddLine("Use quest item", 1, 0.95, 0.7)
+      GameTooltip:AddLine(L.TIP_USE_HEADER, 1, 0.95, 0.7)
       if InCombatLockdown() then
-        GameTooltip:AddLine("Unavailable in combat (try again out of combat).", 1, 0.35, 0.35, true)
+        GameTooltip:AddLine(L.TIP_USE_COMBAT, 1, 0.35, 0.35, true)
       else
         GameTooltip:AddLine(
-          "Uses the item in your bags.",
+          L.TIP_USE_BAGS,
           0.85,
           0.85,
           0.9,

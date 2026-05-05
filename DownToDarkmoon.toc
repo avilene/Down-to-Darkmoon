@@ -23,6 +23,7 @@
 
 embeds.xml
 Core.lua
+Locale.lua
 Calendar.lua
 Data/Retail.lua
 VendorRouting.lua
