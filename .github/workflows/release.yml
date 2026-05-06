@@ -55,7 +55,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
+      version: ${{ steps.bump.outputs.version }}
       tag: ${{ steps.bump.outputs.tag }}
+      previous: ${{ steps.bump.outputs.previous }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -103,5 +105,76 @@ jobs:
           # After bump, default ref would still be pre-push SHA; checkout the new tag instead.
           ref: ${{ github.event_name == 'workflow_dispatch' && needs.bump.outputs.tag || github.ref }}
 
+      - name: Build release metadata
+        id: release_meta
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          BUMP_VERSION: ${{ needs.bump.outputs.version }}
+          BUMP_TAG: ${{ needs.bump.outputs.tag }}
+          BUMP_PREVIOUS: ${{ needs.bump.outputs.previous }}
+          PUSH_TAG_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="$BUMP_VERSION"
+            TAG="$BUMP_TAG"
+            PREVIOUS="$BUMP_PREVIOUS"
+            BUMP_KIND="$INPUT_BUMP"
+          else
+            TAG="$PUSH_TAG_REF"
+            VERSION="${TAG#v}"
+            PREVIOUS=""
+            BUMP_KIND="push-tag"
+          fi
+
+          TITLE="Release ${VERSION}"
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+
+          {
+            echo "## Release ${VERSION}"
+            echo ""
+            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+              if [[ "$BUMP_KIND" == "skip" ]]; then
+                echo "### Release from existing TOC version"
+                echo ""
+                echo "- **TOC version:** ${VERSION}"
+                echo "- **Tag:** \`${TAG}\`"
+              else
+                echo "### Version bump"
+                echo ""
+                echo "- **Previous:** ${PREVIOUS}"
+                echo "- **New:** ${VERSION}"
+                echo "- **Tag:** \`${TAG}\`"
+                echo "- **Bump type:** ${BUMP_KIND}"
+              fi
+            else
+              echo "### Release from tag push"
+              echo ""
+              echo "- **Tag:** \`${TAG}\`"
+              echo "- **Version:** ${VERSION}"
+            fi
+          } > "$NOTES_FILE"
+
+          {
+            echo "title=${TITLE}"
+            echo "tag=${TAG}"
+            echo "notes_file=${NOTES_FILE}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Package and publish
         uses: BigWigsMods/packager@v2
+
+      - name: Update GitHub release title and notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.release_meta.outputs.title }}
+          RELEASE_NOTES_FILE: ${{ steps.release_meta.outputs.notes_file }}
+        run: |
+          set -euo pipefail
+          gh release edit "$RELEASE_TAG" \
+            --title "$RELEASE_TITLE" \
+            --notes-file "$RELEASE_NOTES_FILE"
