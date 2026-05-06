@@ -20,9 +20,11 @@
 #
 # If branch protection blocks pushes from Actions, allow github-actions[bot] or use a PAT on checkout.
 #
-# No run-name: GitHub sets the run title from the event (e.g. commit message on push). See
-# https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#run-name
 name: Release
+run-name: >-
+  ${{ github.event_name == 'push'
+      && format('Release {0}', github.ref_name)
+      || format('Release ({0} bump)', inputs.bump) }}
 
 on:
   workflow_dispatch:
