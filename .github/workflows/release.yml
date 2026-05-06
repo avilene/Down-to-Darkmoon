@@ -1,6 +1,6 @@
 # Packages and publishes with BigWigsMods/packager (WoW Packager action).
 #
-# Scripts: .github/scripts/bump-version-from-toc.sh, bump-job-summary.sh
+# Scripts: .github/scripts/bump-version-from-toc.sh, bump-job-summary.sh, package-job-summary.sh
 #
 # Triggers:
 #   • workflow_dispatch — bump TOC semver (patch/minor/major) **or** skip bump and release the
@@ -54,6 +54,7 @@ concurrency:
 
 jobs:
   bump:
+    name: Bump version in TOC
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
@@ -81,6 +82,7 @@ jobs:
         run: bash .github/scripts/bump-job-summary.sh
 
   package:
+    name: Package and publish
     needs: bump
     if: >
       !cancelled() &&
@@ -107,3 +109,8 @@ jobs:
 
       - name: Package and publish
         uses: BigWigsMods/packager@v2
+
+      - name: Summary
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && needs.bump.outputs.tag || github.ref_name }}
+        run: bash .github/scripts/package-job-summary.sh
