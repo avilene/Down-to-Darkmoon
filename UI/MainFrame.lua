@@ -77,7 +77,7 @@ function UI:CreateMainFrame()
   f:SetMovable(true)
   f:EnableMouse(true)
   f:SetScript("OnHide", function()
-    DownToDarkmoonDB.hidden = true
+    addon:SetPanelHidden(true)
   end)
 
   local titleBar = CreateFrame("Frame", nil, f)
@@ -129,7 +129,7 @@ function UI:CreateMainFrame()
   closeLbl:SetTextColor(0.88, 0.88, 0.92)
   closeBtn:SetScript("OnClick", function()
     f:Hide()
-    DownToDarkmoonDB.hidden = true
+    addon:SetPanelHidden(true)
   end)
   closeBtn:SetScript("OnEnter", function()
     closeBtnBg:SetVertexColor(1, 1, 1, 0.14)

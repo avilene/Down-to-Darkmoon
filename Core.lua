@@ -26,6 +26,8 @@ local defaults = {
 --- Ignores live in DownToDarkmoonCharDB (SavedVariablesPerCharacter).
 local charDefaults = {
   ignoredProfessionQuestIds = {},
+  --- Per-character panel visibility (true = hidden).
+  hidden = true,
 }
 
 local function strtrim(s)
@@ -52,6 +54,23 @@ end
 
 function addon:GetCharDB()
   return DownToDarkmoonCharDB
+end
+
+function addon:IsPanelHidden()
+  local db = self:GetCharDB()
+  if type(db) ~= "table" then
+    return true
+  end
+  --- Nil means "no preference saved yet" -> keep default hidden.
+  return db.hidden ~= false
+end
+
+function addon:SetPanelHidden(hidden)
+  local db = self:GetCharDB()
+  if type(db) ~= "table" then
+    return
+  end
+  db.hidden = hidden and true or false
 end
 
 function addon:PlayerSkillLineSet()
@@ -491,10 +510,10 @@ function addon:TogglePanel()
   local f = self.UI.mainFrame
   if f:IsShown() then
     f:Hide()
-    DownToDarkmoonDB.hidden = true
+    self:SetPanelHidden(true)
   else
     f:Show()
-    DownToDarkmoonDB.hidden = false
+    self:SetPanelHidden(false)
     addon._inactiveBootFrozen = false
     addon.Calendar:RefreshActiveState()
     self.UI:Refresh()
@@ -542,7 +561,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     addon.UI:CreateMainFrame()
     addon.Calendar:Init()
     addon.Minimap:Init()
-    if not DownToDarkmoonDB.hidden then
+    if addon:IsPanelHidden() then
+      addon.UI.mainFrame:Hide()
+    else
       addon.UI.mainFrame:Show()
       addon.UI:Refresh()
     end
