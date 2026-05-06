@@ -4,9 +4,13 @@ local Navigation = {}
 addon.Navigation = Navigation
 
 local function waypointDebug(msg)
-  local db = addon.GetDB and addon:GetDB()
-  if type(db) == "table" and db.debugNavigation then
-    print("|cff73d7ff[DTD nav]|r " .. tostring(msg))
+  if addon.Logger and type(addon.Logger.Debug) == "function" then
+    addon.Logger:Debug("nav", tostring(msg))
+  else
+    local db = addon.GetDB and addon:GetDB()
+    if type(db) == "table" and db.debug then
+      print("|cff73d7ff[DTD nav]|r " .. tostring(msg))
+    end
   end
 end
 
@@ -231,7 +235,7 @@ local function buildWaypointAttempts(mapId, xPct, yPct)
   end
 
   local db = addon.GetDB and addon:GetDB()
-  if type(db) == "table" and db.debugNavigation then
+  if type(db) == "table" and db.debug then
     waypointDebug(("buildWaypointAttempts(%s, %.2f%%, %.2f%%) → %d candidate(s)"):format(tostring(mapId), xPct, yPct, #attempts))
     for i, att in ipairs(attempts) do
       waypointDebug(("  #%d uiMap=%s x=%.6f y=%.6f"):format(i, tostring(att[1]), att[2], att[3]))

@@ -14,8 +14,8 @@ local defaults = {
   --- Main panel scale (0.5–1.5); see /dtdm scale
   scale = 1,
   hidden = true,
-  --- When true, waypoint/pin attempts log to chat (/dtdm navdebug).
-  debugNavigation = false,
+  --- When true, all addon debug logs print to chat (/dtdm debug).
+  debug = false,
   --- LibDBIcon saved placement (see LibDBIcon-1.0 docs)
   minimap = {
     hide = false,
@@ -71,6 +71,12 @@ function addon:SetPanelHidden(hidden)
     return
   end
   db.hidden = hidden and true or false
+end
+
+function addon:LogDebug(channel, msg, ...)
+  if self.Logger and type(self.Logger.Debug) == "function" then
+    self.Logger:Debug(channel, msg, ...)
+  end
 end
 
 function addon:PlayerSkillLineSet()
@@ -511,9 +517,11 @@ function addon:TogglePanel()
   if f:IsShown() then
     f:Hide()
     self:SetPanelHidden(true)
+    self:LogDebug("ui", "Panel hidden via toggle.")
   else
     f:Show()
     self:SetPanelHidden(false)
+    self:LogDebug("ui", "Panel shown via toggle.")
     addon._inactiveBootFrozen = false
     addon.Calendar:RefreshActiveState()
     self.UI:Refresh()
@@ -558,26 +566,29 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     if type(DownToDarkmoonDB.minimapAngle) == "number" and type(DownToDarkmoonDB.minimap) == "table" then
       DownToDarkmoonDB.minimap.minimapPos = DownToDarkmoonDB.minimap.minimapPos or DownToDarkmoonDB.minimapAngle
     end
+    addon:LogDebug("core", "ADDON_LOADED: debug=%s", tostring(DownToDarkmoonDB.debug))
     addon.UI:CreateMainFrame()
     addon.Calendar:Init()
     addon.Minimap:Init()
     if addon:IsPanelHidden() then
       addon.UI.mainFrame:Hide()
+      addon:LogDebug("ui", "Startup: panel hidden for this character.")
     else
       addon.UI.mainFrame:Show()
       addon.UI:Refresh()
+      addon:LogDebug("ui", "Startup: panel shown for this character.")
     end
     SLASH_DOWNTO_DARKMOON1 = "/dtdm"
     SLASH_DOWNTO_DARKMOON2 = "/downtodarkmoon"
     SlashCmdList["DOWNTO_DARKMOON"] = function(msg)
       local raw = strtrim(msg or "")
       local cmd = raw:lower()
-      if cmd == "navdebug" or cmd == "pins" or cmd == "waypoints" then
-        DownToDarkmoonDB.debugNavigation = not DownToDarkmoonDB.debugNavigation
+      if cmd == "debug" then
+        DownToDarkmoonDB.debug = not DownToDarkmoonDB.debug
         print(
-          L.SLASH_NAVDEBUG,
-          DownToDarkmoonDB.debugNavigation and L.SLASH_ON or L.SLASH_OFF,
-          L.SLASH_NAVDEBUG_HINT
+          L.SLASH_DEBUG,
+          DownToDarkmoonDB.debug and L.SLASH_ON or L.SLASH_OFF,
+          L.SLASH_DEBUG_HINT
         )
         return
       end
@@ -600,11 +611,14 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
         )
         return
       end
-      addon:TogglePanel()
+      print(L.SLASH_DEBUG)
+      print(L.SLASH_DEBUG_HINT)
+      print(L.SLASH_SCALE_USAGE)
     end
     return
   end
   if event == "PLAYER_LOGIN" then
+    addon:LogDebug("core", "PLAYER_LOGIN fired.")
     addon.Calendar:ScheduleRefresh(0)
     addon.UI:ApplySavedPosition()
     addon.UI:ApplySavedScale()

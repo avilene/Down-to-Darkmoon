@@ -58,11 +58,11 @@ local enUS = {
   MSG_NO_BANK_STACKS = "|cfffeaa00Down to Darkmoon:|r No matching stacks in bank.",
   MSG_NO_BAG_SPACE = "|cfffeaa00Down to Darkmoon:|r No empty bag space.",
 
-  SLASH_NAVDEBUG = "|cfffeaa00Down to Darkmoon:|r Waypoint / map pin debug:",
+  SLASH_DEBUG = "|cfffeaa00Down to Darkmoon:|r Debug logging:",
   SLASH_ON = "|cff33ff33ON|r",
   SLASH_OFF = "|cffff5555OFF|r",
-  SLASH_NAVDEBUG_HINT = "(logs pin attempts to chat; toggle with /dtdm navdebug)",
-  SLASH_SCALE_USAGE = "|cfffeaa00Down to Darkmoon:|r Usage: |cffffffff/dtdm scale 0.85|r  (window scale, range |cffffffff0.5–1.5|r)",
+  SLASH_DEBUG_HINT = "|cfffeaa00Down to Darkmoon:|r /dtdm debug (toggle debug logging)",
+  SLASH_SCALE_USAGE = "|cfffeaa00Down to Darkmoon:|r /dtdm scale 0.85 (window scale, range |cffffffff0.5–1.5|r)",
   SLASH_SCALE_PARSE = "|cfffeaa00Down to Darkmoon:|r Could not parse scale; example: |cffffffff/dtdm scale 1|r",
   SLASH_SCALE_SET = "|cfffeaa00Down to Darkmoon:|r Panel scale set to |cffffffff%.2f|r (saved).",
 }

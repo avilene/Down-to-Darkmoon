@@ -30,6 +30,7 @@ function MinimapMod:Init()
   local iconLib = LibStub and LibStub("LibDBIcon-1.0", true)
   if not ldb or not iconLib then
     print("|cfffeaa00Down to Darkmoon:|r LibDataBroker / LibDBIcon failed to load (check embeds.xml).")
+    addon:LogDebug("minimap", "LibDataBroker/LibDBIcon missing; minimap icon unavailable.")
     return
   end
 
@@ -80,4 +81,5 @@ function MinimapMod:Init()
 
   self._registered = true
   self.iconLib = iconLib
+  addon:LogDebug("minimap", "Minimap broker/icon registered.")
 end
