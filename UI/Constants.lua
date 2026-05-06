@@ -33,7 +33,6 @@ addon.UI.C = {
   --- Right margin + Buy + gap + Pull (matches item row anchors).
   ITEM_ACTION_BAR_OFFSET = 2 + ACTION_BTN_W + ACTION_BTN_GAP + ACTION_BTN_W,
   QUEST_USE_BTN_SIZE = ITEM_ROW_H - 2,
+  --- Keep use rows aligned with shopping rows: one right-side action button width + right pad.
+  QUEST_USE_ACTION_OFFSET = 2 + ACTION_BTN_W
 }
-
---- Keep use rows aligned with shopping rows: one right-side action button width + right pad.
-addon.UI.C.QUEST_USE_ACTION_OFFSET = 2 + addon.UI.C.ACTION_BTN_W

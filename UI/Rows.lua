@@ -27,77 +27,6 @@ local function ShowBlizzardItemTooltip(owner, itemId, fallbackName)
   GameTooltip:Show()
 end
 
-local function CreateAddonActionButton(parent, label)
-  local b = CreateFrame("Button", nil, parent)
-  b:SetSize(C.ACTION_BTN_W, C.ACTION_BTN_H)
-  b:RegisterForClicks("LeftButtonUp")
-
-  local bg = b:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
-  bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-  bg:SetVertexColor(0.11, 0.09, 0.12, 0.96)
-
-  local border = CreateFrame("Frame", nil, b, "BackdropTemplate")
-  border:SetPoint("TOPLEFT", b, "TOPLEFT", -1, 1)
-  border:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 1, -1)
-  border:SetBackdrop({
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = false,
-    tileSize = 0,
-    edgeSize = 12,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 },
-  })
-  border:SetBackdropColor(0, 0, 0, 0)
-  border:SetBackdropBorderColor(0.2, 0.18, 0.14, 0.72)
-
-  local fs = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  fs:SetPoint("CENTER", 0, 0)
-  fs:SetText(label)
-  fs:SetTextColor(0.94, 0.82, 0.32)
-
-  b:SetScript("OnEnter", function(self)
-    bg:SetVertexColor(0.15, 0.12, 0.16, 0.98)
-    border:SetBackdropBorderColor(0.8, 0.68, 0.38, 0.9)
-    fs:SetTextColor(1, 0.9, 0.42)
-    if self:IsMouseButtonDown("LeftButton") then
-      fs:SetPoint("CENTER", 1, -1)
-    end
-  end)
-  b:SetScript("OnLeave", function()
-    bg:SetVertexColor(0.11, 0.09, 0.12, 0.96)
-    border:SetBackdropBorderColor(0.2, 0.18, 0.14, 0.72)
-    fs:SetTextColor(0.94, 0.82, 0.32)
-    fs:SetPoint("CENTER", 0, 0)
-  end)
-  b:SetScript("OnMouseDown", function(_, button)
-    if button == "LeftButton" then
-      bg:SetVertexColor(0.09, 0.07, 0.1, 0.98)
-      fs:SetPoint("CENTER", 1, -1)
-    end
-  end)
-  b:SetScript("OnMouseUp", function(_, button)
-    if button == "LeftButton" then
-      bg:SetVertexColor(0.15, 0.12, 0.16, 0.98)
-      fs:SetPoint("CENTER", 0, 0)
-    end
-  end)
-  b:SetScript("OnDisable", function()
-    bg:SetVertexColor(0.08, 0.08, 0.1, 0.78)
-    border:SetBackdropBorderColor(0.16, 0.16, 0.18, 0.55)
-    fs:SetTextColor(0.42, 0.42, 0.46)
-    fs:SetPoint("CENTER", 0, 0)
-  end)
-  b:SetScript("OnEnable", function()
-    bg:SetVertexColor(0.11, 0.09, 0.12, 0.96)
-    border:SetBackdropBorderColor(0.2, 0.18, 0.14, 0.72)
-    fs:SetTextColor(0.94, 0.82, 0.32)
-  end)
-
-  b.label = fs
-  return b
-end
-
 local function UseFirstBagItemById(itemId)
   if not itemId or InCombatLockdown() then
     return false
@@ -307,46 +236,9 @@ function UI:GetItemRow(i)
     end)
     bg:SetScript("OnLeave", GameTooltip_Hide)
 
-    local buy = CreateAddonActionButton(irow, L.BTN_BUY)
+    local buy = self:CreateAddonActionButton(irow, L.BTN_BUY)
     buy:SetPoint("RIGHT", irow, "RIGHT", -2, 0)
     buy:SetFrameLevel(irow:GetFrameLevel() + 20)
-
-    local pull = CreateAddonActionButton(irow, L.BTN_PULL)
-    pull:SetPoint("RIGHT", buy, "LEFT", -C.ACTION_BTN_GAP, 0)
-    pull:SetFrameLevel(irow:GetFrameLevel() + 20)
-    pull:SetScript("OnClick", function(self)
-      if InCombatLockdown() then
-        print(L.MSG_CANNOT_PULL_COMBAT)
-        return
-      end
-      if not addon.QuantityAssist:IsBankInventoryAccessible() then
-        print(L.MSG_OPEN_BANK_PULL)
-        return
-      end
-      local itemId = self.dtdItemId
-      local need = self.dtdNeed
-      if itemId and need and need > 0 then
-        addon.QuantityAssist:WithdrawFromBank(itemId, need)
-      end
-    end)
-    pull:HookScript("OnEnter", function(self)
-      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-      GameTooltip:AddLine(L.TIP_PULL_HEADER, 1, 0.95, 0.7)
-      if InCombatLockdown() then
-        GameTooltip:AddLine(L.TIP_UNAVAILABLE_COMBAT, 1, 0.35, 0.35, true)
-      elseif not addon.QuantityAssist:IsBankInventoryAccessible() then
-        GameTooltip:AddLine(L.TIP_PULL_OPEN_BANK, 0.75, 0.75, 0.8, true)
-      elseif (self.dtdNeed or 0) <= 0 then
-        GameTooltip:AddLine(L.TIP_PULL_NOTHING_LEFT, 0.55, 0.55, 0.55, true)
-      else
-        GameTooltip:AddLine(L.TIP_PULL_WITHDRAW, 0.85, 0.85, 0.9, true)
-        GameTooltip:AddLine(L.TIP_PULL_NONE_IN_BANK, 0.9, 0.75, 0.55, true)
-      end
-      GameTooltip:Show()
-    end)
-    pull:HookScript("OnLeave", GameTooltip_Hide)
-    irow.pull = pull
-
     buy:SetScript("OnClick", function(self)
       if InCombatLockdown() then
         print(L.MSG_CANNOT_BUY_COMBAT)
@@ -387,6 +279,42 @@ function UI:GetItemRow(i)
       GameTooltip:Show()
     end)
     buy:HookScript("OnLeave", GameTooltip_Hide)
+
+    local pull = self:CreateAddonActionButton(irow, L.BTN_PULL)
+    pull:SetPoint("RIGHT", buy, "LEFT", -C.ACTION_BTN_GAP, 0)
+    pull:SetFrameLevel(irow:GetFrameLevel() + 20)
+    pull:SetScript("OnClick", function(self)
+      if InCombatLockdown() then
+        print(L.MSG_CANNOT_PULL_COMBAT)
+        return
+      end
+      if not addon.QuantityAssist:IsBankInventoryAccessible() then
+        print(L.MSG_OPEN_BANK_PULL)
+        return
+      end
+      local itemId = self.dtdItemId
+      local need = self.dtdNeed
+      if itemId and need and need > 0 then
+        addon.QuantityAssist:WithdrawFromBank(itemId, need)
+      end
+    end)
+    pull:HookScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+      GameTooltip:AddLine(L.TIP_PULL_HEADER, 1, 0.95, 0.7)
+      if InCombatLockdown() then
+        GameTooltip:AddLine(L.TIP_UNAVAILABLE_COMBAT, 1, 0.35, 0.35, true)
+      elseif not addon.QuantityAssist:IsBankInventoryAccessible() then
+        GameTooltip:AddLine(L.TIP_PULL_OPEN_BANK, 0.75, 0.75, 0.8, true)
+      elseif (self.dtdNeed or 0) <= 0 then
+        GameTooltip:AddLine(L.TIP_PULL_NOTHING_LEFT, 0.55, 0.55, 0.55, true)
+      else
+        GameTooltip:AddLine(L.TIP_PULL_WITHDRAW, 0.85, 0.85, 0.9, true)
+        GameTooltip:AddLine(L.TIP_PULL_NONE_IN_BANK, 0.9, 0.75, 0.55, true)
+      end
+      GameTooltip:Show()
+    end)
+    pull:HookScript("OnLeave", GameTooltip_Hide)
+    irow.pull = pull
     irow.buy = buy
 
     self.poolItem[i] = irow
@@ -461,23 +389,6 @@ function UI:GetQuestUseItemRow(i)
     useBtn:SetPoint("RIGHT", urow, "RIGHT", -2, 0)
     useBtn:SetFrameLevel(urow:GetFrameLevel() + 20)
     useBtn:RegisterForClicks("AnyDown", "AnyUp")
-
-    local ubIcon = useBtn:CreateTexture(nil, "ARTWORK")
-    ubIcon:SetAllPoints()
-    ubIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    useBtn.iconTex = ubIcon
-
-    local ubHi = useBtn:CreateTexture(nil, "HIGHLIGHT")
-    ubHi:SetAllPoints()
-    ubHi:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
-    ubHi:SetBlendMode("ADD")
-
-    local ubLab = useBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    ubLab:SetPoint("BOTTOM", 0, 1)
-    ubLab:SetText(L.BTN_USE)
-    ubLab:SetAlpha(0.85)
-    useBtn.useLabel = ubLab
-
     useBtn:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
       GameTooltip:AddLine(L.TIP_USE_HEADER, 1, 0.95, 0.7)
@@ -495,6 +406,22 @@ function UI:GetQuestUseItemRow(i)
       GameTooltip:Show()
     end)
     useBtn:SetScript("OnLeave", GameTooltip_Hide)
+
+    local ubIcon = useBtn:CreateTexture(nil, "ARTWORK")
+    ubIcon:SetAllPoints()
+    ubIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    useBtn.iconTex = ubIcon
+
+    local ubHi = useBtn:CreateTexture(nil, "HIGHLIGHT")
+    ubHi:SetAllPoints()
+    ubHi:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    ubHi:SetBlendMode("ADD")
+
+    local ubLab = useBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    ubLab:SetPoint("BOTTOM", 0, 1)
+    ubLab:SetText(L.BTN_USE)
+    ubLab:SetAlpha(0.85)
+    useBtn.useLabel = ubLab
     urow.useBtn = useBtn
 
     self.poolQuestUseItem[i] = urow
