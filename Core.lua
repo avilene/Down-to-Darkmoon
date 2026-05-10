@@ -21,6 +21,8 @@ local defaults = {
     hide = false,
     minimapPos = 225,
   },
+  --- Next Darkmoon opening after last calendar resolve ({ year, month, monthDay [, hour, minute] }); rolled forward when the calendar date catches up.
+  nextFaireStart = nil,
 }
 
 --- Ignores live in DownToDarkmoonCharDB (SavedVariablesPerCharacter).
@@ -592,6 +594,10 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
         )
         return
       end
+      if cmd == "caldebug" then
+        addon.Calendar:DumpDarkmoonCalendarDebug()
+        return
+      end
       if cmd:sub(1, 5) == "scale" then
         local numStr = raw:lower():match("^scale%s+([%d%.]+)")
         if cmd == "scale" or numStr == nil or numStr == "" then
@@ -613,6 +619,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
       end
       print(L.SLASH_DEBUG)
       print(L.SLASH_DEBUG_HINT)
+      print(L.SLASH_CALDEBUG_USAGE)
       print(L.SLASH_SCALE_USAGE)
     end
     return
@@ -625,6 +632,12 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     if addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
       addon.UI:Refresh()
     end
+    --- Warm next-Faire cache after calendar APIs have had a moment (even if the panel stays closed).
+    C_Timer.After(2.5, function()
+      if addon.Calendar and addon.Calendar.GetNextDarkmoonStartAfterNow then
+        addon.Calendar:GetNextDarkmoonStartAfterNow()
+      end
+    end)
     return
   end
   if event == "UNIT_INVENTORY_CHANGED" and arg1 ~= "player" then

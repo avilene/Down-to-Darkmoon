@@ -31,7 +31,10 @@ function UI:Refresh()
 
   if not addon:IsDarkmoonActive() then
     --- After calendar has decided "inactive" once, skip repeated full paints from bag/merchant spam on boot.
-    if addon.Calendar._hasRefreshedStateOnce and addon._inactiveBootFrozen then
+    --- If we still have no saved next date, keep refreshing so the first successful calendar fetch can populate DB.
+    local db = addon.GetDB and addon:GetDB()
+    local hasSavedNext = type(db) == "table" and db.nextFaireStart ~= nil
+    if addon.Calendar._hasRefreshedStateOnce and addon._inactiveBootFrozen and hasSavedNext then
       return
     end
     self:TrimPools(0, 0, 0, 0, false)
