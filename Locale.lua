@@ -9,7 +9,7 @@ local enUS = {
   PANEL_COMPLETED_IGNORED = "completed (ignored)",
   PANEL_IGNORED = "ignored",
   PANEL_SEE_YOU_ON = "See you on |cffffffff%s|r for the next Faire!",
-  PANEL_SEE_YOU_NEXT = "See you at the next Faire! (Open the calendar once if the date doesn't show.)",
+  PANEL_SEE_YOU_NEXT = "See you at the next Faire!",
   PANEL_NO_QUESTS = "No Darkmoon profession quests to show. Train a profession or use a character with one.",
 
   BTN_BUY = "Buy",
@@ -57,6 +57,8 @@ local enUS = {
   MSG_CANNOT_WITHDRAW_COMBAT = "|cfffeaa00Down to Darkmoon:|r Cannot withdraw in combat.",
   MSG_NO_BANK_STACKS = "|cfffeaa00Down to Darkmoon:|r No matching stacks in bank.",
   MSG_NO_BAG_SPACE = "|cfffeaa00Down to Darkmoon:|r No empty bag space.",
+  MSG_WAYPOINT_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Waypoint — %s (via Darkmoon portal first)",
+  MSG_MAP_PIN_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Map pin — Darkmoon portal, then %s",
 
   SLASH_DEBUG = "|cfffeaa00Down to Darkmoon:|r Debug logging:",
   SLASH_ON = "|cff33ff33ON|r",

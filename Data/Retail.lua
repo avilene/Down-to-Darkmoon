@@ -254,9 +254,10 @@ local QUESTS = {
     name = "Eyes on the Prizes",
     profession = "leatherworking",
     skillLineId = PROFESSION_SKILL_LINE.leatherworking,
-    --- Darkmoon Craftsman's Kit (Wowhead item=71977) to craft Darkmoon Prizes with the vendor mats.
+    --- Darkmoon Craftsman's Kit (71977) crafts Darkmoon Prize (71976) with vendor mats.
     useQuestItems = {
       { itemId = 71977 },
+      { itemId = 71976 },
     },
     hideRequiredStacksWhenHaveItemIds = { 71976 },
     requiredStacks = {
@@ -286,9 +287,10 @@ local QUESTS = {
     name = "Banners, Banners Everywhere!",
     profession = "tailoring",
     skillLineId = PROFESSION_SKILL_LINE.tailoring,
-    --- Darkmoon Banner Kit (Wowhead item=72048) with dyes/thread; place banner on Loose Stones (Wowhead 29520).
+    --- Darkmoon Banner Kit (72048) crafts Darkmoon Banner (72049); plant banner on Loose Stones (Wowhead 29520).
     useQuestItems = {
       { itemId = 72048 },
+      { itemId = 72049 },
     },
     hideRequiredStacksWhenHaveItemIds = { 72049 },
     requiredStacks = {
@@ -297,6 +299,13 @@ local QUESTS = {
       { itemKey = "blue_dye",      count = 1 },
     },
   },
+}
+
+--- Faire staging-ground portals (only while the event is active). uiMap: Elwynn=37, Mulgore=7.
+--- Coords from Wowhead / in-game (south of Goldshire; southwest base of Thunder Bluff).
+local DARKMOON_PORTALS = {
+  Alliance = { mapId = 37, x = 41.78, y = 69.45, label = "Darkmoon Faire Portal — Goldshire" },
+  Horde = { mapId = 7, x = 36.84, y = 35.84, label = "Darkmoon Faire Portal — Mulgore" },
 }
 
 --- Keys match each quest's `profession` string (PROFESSION_SKILL_LINE names).
@@ -324,4 +333,5 @@ addon.Data = {
   ITEMS = ITEMS,
   QUESTS = QUESTS,
   POIS = POIS,
+  DARKMOON_PORTALS = DARKMOON_PORTALS,
 }

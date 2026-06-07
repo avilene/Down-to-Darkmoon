@@ -464,6 +464,19 @@ function addon:GetQuestObjectiveEntries(questId)
   return out
 end
 
+local function questRequiredStacksSatisfied(qdef)
+  if not qdef or type(qdef.requiredStacks) ~= "table" then
+    return false
+  end
+  for _, stack in ipairs(qdef.requiredStacks) do
+    local def = addon.Data and addon.Data.ITEMS and addon.Data.ITEMS[stack.itemKey]
+    if def and def.itemId and addon.QuantityAssist:GetStillNeed(def.itemId, stack.count) > 0 then
+      return false
+    end
+  end
+  return #qdef.requiredStacks > 0
+end
+
 --- Hide vendor/shopping rows when mats are satisfied, the quest has moved on (e.g. crafted Crunchy Frogs),
 --- or the player already holds a later-stage item from `Data/Retail.lua` `hideRequiredStacksWhenHaveItemIds`.
 function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
@@ -474,36 +487,33 @@ function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
     return false
   end
   local qdef = self:GetProfessionQuestDef(questId)
-  if qdef and type(qdef.useQuestItems) == "table" and type(qdef.requiredStacks) == "table" then
-    local hasUseItemInBags = false
-    for _, udef in ipairs(qdef.useQuestItems) do
-      local uid = udef and udef.itemId
-      if type(uid) == "number" and self:GetItemCountCompat(uid) > 0 then
-        hasUseItemInBags = true
-        break
-      end
-    end
-    if hasUseItemInBags then
-      local allRequiredSatisfied = true
-      for _, stack in ipairs(qdef.requiredStacks) do
-        local def = self.Data and self.Data.ITEMS and self.Data.ITEMS[stack.itemKey]
-        if def and def.itemId and self.QuantityAssist:GetStillNeed(def.itemId, stack.count) > 0 then
-          allRequiredSatisfied = false
-          break
-        end
-      end
-      if allRequiredSatisfied then
-        return false
-      end
-    end
-  end
+  local sid = self:GetQuestLogSpecialItemIdForQuest(questId)
+
   if qdef and type(qdef.hideRequiredStacksWhenHaveItemIds) == "table" then
     for _, uid in ipairs(qdef.hideRequiredStacksWhenHaveItemIds) do
-      if type(uid) == "number" and self:GetItemCountCompat(uid) > 0 then
+      if type(uid) == "number" and (sid == uid or self:GetItemCountCompat(uid) > 0) then
         return false
       end
     end
   end
+
+  if qdef and type(qdef.useQuestItems) == "table" and type(qdef.requiredStacks) == "table" then
+    local matsReady = questRequiredStacksSatisfied(qdef)
+    if sid then
+      for _, udef in ipairs(qdef.useQuestItems) do
+        if udef and udef.itemId == sid and matsReady then
+          return false
+        end
+      end
+    end
+    for _, udef in ipairs(qdef.useQuestItems) do
+      local uid = udef and udef.itemId
+      if type(uid) == "number" and self:GetItemCountCompat(uid) > 0 and matsReady then
+        return false
+      end
+    end
+  end
+
   local still = self.QuantityAssist:GetStillNeed(itemId, need)
   if still <= 0 then
     return false
@@ -572,14 +582,10 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     addon.UI:CreateMainFrame()
     addon.Calendar:Init()
     addon.Minimap:Init()
-    if addon:IsPanelHidden() then
-      addon.UI.mainFrame:Hide()
-      addon:LogDebug("ui", "Startup: panel hidden for this character.")
-    else
-      addon.UI.mainFrame:Show()
-      addon.UI:Refresh()
-      addon:LogDebug("ui", "Startup: panel shown for this character.")
-    end
+    --- Always start hidden; user can explicitly open from the minimap button.
+    addon:SetPanelHidden(true)
+    addon.UI.mainFrame:Hide()
+    addon:LogDebug("ui", "Startup: panel forced hidden.")
     SLASH_DOWNTO_DARKMOON1 = "/dtdm"
     SLASH_DOWNTO_DARKMOON2 = "/downtodarkmoon"
     SlashCmdList["DOWNTO_DARKMOON"] = function(msg)

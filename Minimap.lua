@@ -84,7 +84,7 @@ function MinimapMod:Init()
             )
           else
             tooltip:AddLine(
-              "See you at the next Faire! (Open the calendar once if the date doesn’t show.)",
+              "See you at the next Faire!",
               0.55,
               1,
               0.65,

@@ -71,6 +71,26 @@ local function mapIdRefersToDarkmoonIsland(mapId)
   return uiMapIsDarkmoonIslandFloor(mapId)
 end
 
+local function playerAtDarkmoonIsland()
+  local mapId = C_Map.GetBestMapForUnit("player")
+  if not mapId then
+    return false
+  end
+  return mapIdRefersToDarkmoonIsland(mapId)
+end
+
+local function getDarkmoonPortalForPlayer()
+  local portals = addon.Data and addon.Data.DARKMOON_PORTALS
+  if not portals or not addon.VendorRouting then
+    return nil
+  end
+  local faction = addon.VendorRouting:PlayerFactionKey()
+  if not faction then
+    return nil
+  end
+  return portals[faction]
+end
+
 --- Floor ids from Blizzard data (408 + any GetMapChildrenInfo(407)); avoids shipping stale hardcoded ids (e.g. 2392).
 local function getDarkmoonFloorUiMapIds()
   local out = {}
@@ -283,17 +303,19 @@ local function tomTomFocusWaypoint(tt, uid, title)
 end
 
 --- Myu's addon calls TomTom:AddWaypoint(uiMap, nx, ny, opts); older TomTom used AddMFWaypoint only.
-local function addTomTomWaypoint(mapId, xNorm, yNorm, title)
+---@param extraOpts table? `{ crazy?: boolean }` — `crazy=false` queues behind the active arrow (portal hop).
+local function addTomTomWaypoint(mapId, xNorm, yNorm, title, extraOpts)
   local TT = isTomTomAddonLoaded()
   if not TT then
     return false
   end
+  local crazy = not extraOpts or extraOpts.crazy ~= false
   local opts = {
     title = title,
     persistent = false,
     minimap = true,
     world = true,
-    crazy = true,
+    crazy = crazy,
     silent = true,
   }
   if type(TT.AddWaypoint) == "function" then
@@ -301,7 +323,9 @@ local function addTomTomWaypoint(mapId, xNorm, yNorm, title)
       return TT:AddWaypoint(mapId, xNorm, yNorm, opts)
     end)
     if ok and uid then
-      tomTomFocusWaypoint(TT, uid, title)
+      if crazy then
+        tomTomFocusWaypoint(TT, uid, title)
+      end
       return true
     elseif ok then
       --- Some TomTom builds run AddWaypoint without returning the uid.
@@ -313,7 +337,9 @@ local function addTomTomWaypoint(mapId, xNorm, yNorm, title)
       return TT:AddMFWaypoint(mapId, nil, xNorm, yNorm, opts)
     end)
     if ok and uid then
-      tomTomFocusWaypoint(TT, uid, title)
+      if crazy then
+        tomTomFocusWaypoint(TT, uid, title)
+      end
       return true
     end
   end
@@ -339,6 +365,37 @@ local function tryBlizzardPinOnce(mid, nx, ny)
     pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
   end
   return true
+end
+
+---@param opts table? `{ skipBlizzardPins?: boolean, useBlizzard?: boolean, tomTomCrazy?: boolean }`
+local function trySetWaypointFromAttempts(attempts, title, opts)
+  opts = opts or {}
+  local skipBlizzardPins = opts.skipBlizzardPins or false
+  local useBlizzard = opts.useBlizzard ~= false
+  local tomTomCrazy = opts.tomTomCrazy ~= false
+
+  if useBlizzard and not skipBlizzardPins then
+    for _, att in ipairs(attempts) do
+      local mid, nx, ny = att[1], att[2], att[3]
+      nx = clamp01(nx)
+      ny = clamp01(ny)
+      if nx and ny and tryBlizzardPinOnce(mid, nx, ny) then
+        addTomTomWaypoint(mid, nx, ny, title, { crazy = tomTomCrazy })
+        waypointDebug(("  pin+TomTom | uiMap=%s crazy=%s"):format(tostring(mid), tostring(tomTomCrazy)))
+        return true, "blizzard"
+      end
+    end
+  end
+  for _, att in ipairs(attempts) do
+    local mid, nx, ny = att[1], att[2], att[3]
+    nx = clamp01(nx)
+    ny = clamp01(ny)
+    if nx and ny and addTomTomWaypoint(mid, nx, ny, title, { crazy = tomTomCrazy }) then
+      waypointDebug(("  TomTom-only OK | uiMap=%s crazy=%s"):format(tostring(mid), tostring(tomTomCrazy)))
+      return true, "tomtom"
+    end
+  end
+  return false
 end
 
 function Navigation:SetWaypointPct(mapId, xPct, yPct, title)
@@ -378,38 +435,64 @@ function Navigation:SetWaypointPct(mapId, xPct, yPct, title)
     attempts = onPlayerMap
   end
 
+  local needPortalHop = mapIdRefersToDarkmoonIsland(mapId) and not playerAtDarkmoonIsland()
+  local portal = needPortalHop and getDarkmoonPortalForPlayer() or nil
+  if needPortalHop and portal then
+    waypointDebug(("  Off-island Darkmoon target → portal hop via %q"):format(portal.label))
+  elseif needPortalHop then
+    waypointDebug("  Off-island Darkmoon target but no faction portal (skipping hop).")
+    needPortalHop = false
+  end
+
   if C_Map.ClearUserWaypoint then
     pcall(C_Map.ClearUserWaypoint)
   end
 
-  --- Blizzard pin first, then TomTom (elsewhere; Myu's Knowledge Points Tracker order). On Darkmoon, TomTom only.
-  if not skipBlizzardPins then
-    for _, att in ipairs(attempts) do
-      local mid, nx, ny = att[1], att[2], att[3]
-      nx = clamp01(nx)
-      ny = clamp01(ny)
-      if nx and ny then
-        if tryBlizzardPinOnce(mid, nx, ny) then
-          addTomTomWaypoint(mid, nx, ny, title)
-          waypointDebug(("  pin+TomTom | uiMap=%s"):format(tostring(mid)))
-          print(("|cfffeaa00Down to Darkmoon:|r Map pin — %s"):format(title))
-          return
-        end
-      end
-    end
-    waypointDebug("  Blizzard pin failed for all candidates; trying TomTom-only…")
-  else
-    waypointDebug("  Trying TomTom-only…")
+  local portalOk, portalKind
+  if portal then
+    local portalAttempts = buildWaypointAttempts(portal.mapId, portal.x, portal.y)
+    portalOk, portalKind = trySetWaypointFromAttempts(portalAttempts, portal.label, {
+      skipBlizzardPins = false,
+      useBlizzard = true,
+      tomTomCrazy = true,
+    })
   end
-  for _, att in ipairs(attempts) do
-    local mid, nx, ny = att[1], att[2], att[3]
-    nx = clamp01(nx)
-    ny = clamp01(ny)
-    if nx and ny and addTomTomWaypoint(mid, nx, ny, title) then
-      waypointDebug(("  TomTom-only OK | uiMap=%s"):format(tostring(mid)))
-      print(("|cfffeaa00Down to Darkmoon:|r Waypoint — %s"):format(title))
-      return
+
+  --- Off-island: keep the Blizzard pin on the portal; queue the island POI in TomTom behind it.
+  local destOk, destKind = trySetWaypointFromAttempts(attempts, title, {
+    skipBlizzardPins = skipBlizzardPins,
+    useBlizzard = not needPortalHop,
+    tomTomCrazy = not needPortalHop,
+  })
+
+  local L = addon.L
+  if portalOk and destOk then
+    if destKind == "blizzard" or portalKind == "blizzard" then
+      local msg = (L and L.MSG_MAP_PIN_VIA_PORTAL)
+        or "|cfffeaa00Down to Darkmoon:|r Map pin — Darkmoon portal, then %s"
+      print(msg:format(title))
+    else
+      local msg = (L and L.MSG_WAYPOINT_VIA_PORTAL)
+        or "|cfffeaa00Down to Darkmoon:|r Waypoint — %s (via Darkmoon portal first)"
+      print(msg:format(title))
     end
+    return
+  end
+  if portalOk and portal then
+    if portalKind == "blizzard" then
+      print(("|cfffeaa00Down to Darkmoon:|r Map pin — %s"):format(portal.label))
+    else
+      print(("|cfffeaa00Down to Darkmoon:|r Waypoint — %s"):format(portal.label))
+    end
+    return
+  end
+  if destOk then
+    if destKind == "blizzard" then
+      print(("|cfffeaa00Down to Darkmoon:|r Map pin — %s"):format(title))
+    else
+      print(("|cfffeaa00Down to Darkmoon:|r Waypoint — %s"):format(title))
+    end
+    return
   end
 
   print("|cfffeaa00Down to Darkmoon:|r Install TomTom for arrows, or open a zone map that allows pins.")
