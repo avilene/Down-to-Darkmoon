@@ -1,26 +1,7 @@
 local addonName, addon = ...
-local L = addon.L
 
 local MinimapMod = {}
 addon.Minimap = MinimapMod
-
-local function showMinimapContextMenu(anchorFrame)
-  local function runUpdate()
-    addon:InvalidateNextFaireStartCache()
-    print("|cfffeaa00Down to Darkmoon:|r " .. L.MSG_NEXT_DATE_UPDATED)
-  end
-
-  if MenuUtil and MenuUtil.CreateContextMenu then
-    MenuUtil.CreateContextMenu(anchorFrame, function(_, rootDescription)
-      rootDescription:CreateButton(L.MINIMAP_UPDATE_NEXT_DATE, function()
-        runUpdate()
-      end)
-    end)
-    return
-  end
-
-  runUpdate()
-end
 
 function MinimapMod:RefreshTooltip()
   local iconLib = LibStub and LibStub("LibDBIcon-1.0", true)
@@ -59,18 +40,13 @@ function MinimapMod:Init()
     text = "Down to Darkmoon",
     tocname = "DownToDarkmoon",
     icon = "Interface\\Icons\\INV_Misc_Ticket_Tarot_Elemental_01",
-    OnClick = function(anchorFrame, btn)
-      if btn == "RightButton" then
-        showMinimapContextMenu(anchorFrame)
-        return
-      end
+    OnClick = function()
       addon:TogglePanel()
     end,
     OnTooltipShow = function(tooltip)
       if addon:IsDarkmoonActive() then
         tooltip:AddLine("Down to Darkmoon", 1, 1, 1)
         tooltip:AddLine("Click to toggle the addon.", 0.75, 0.85, 1, true)
-        tooltip:AddLine(L.MINIMAP_TOOLTIP_RIGHT_CLICK, 0.55, 0.55, 0.6, true)
         if addon:AreAllDarkmoonProfessionQuestsDoneForCharacter() then
           tooltip:AddLine(" ")
           local when = addon:GetNextDarkmoonFaireStartDateString()
@@ -94,7 +70,6 @@ function MinimapMod:Init()
         end
       else
         tooltip:AddLine("Darkmoon Not Active", 1, 0.35, 0.35)
-        tooltip:AddLine(L.MINIMAP_TOOLTIP_RIGHT_CLICK, 0.55, 0.55, 0.6, true)
       end
     end,
   })

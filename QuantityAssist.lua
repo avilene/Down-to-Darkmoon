@@ -49,6 +49,19 @@ function QuantityAssist:IsBankInventoryAccessible()
   if abp and abp.IsShown and abp:IsShown() then
     return true
   end
+  local C = C_PlayerInteractionManager
+  local Pit = Enum.PlayerInteractionType
+  if C and Pit and type(C.IsInteractingWithNpcOfType) == "function" then
+    if Pit.Banker and C.IsInteractingWithNpcOfType(Pit.Banker) then
+      return true
+    end
+    if Pit.CharacterBanker and C.IsInteractingWithNpcOfType(Pit.CharacterBanker) then
+      return true
+    end
+    if Pit.AccountBanker and C.IsInteractingWithNpcOfType(Pit.AccountBanker) then
+      return true
+    end
+  end
   return false
 end
 
@@ -287,4 +300,18 @@ function QuantityAssist:BuyFromMerchant(merchantIndex, qty)
   end
   BuyMerchantItem(merchantIndex, qty)
   return true
+end
+
+function QuantityAssist:CanPullIngredient(need)
+  if InCombatLockdown() or not need or need <= 0 then
+    return false
+  end
+  return self:IsBankInventoryAccessible()
+end
+
+function QuantityAssist:CanBuyIngredient(itemId, need)
+  if InCombatLockdown() or not need or need <= 0 then
+    return false
+  end
+  return self:FindMerchantIndex(itemId) ~= nil
 end

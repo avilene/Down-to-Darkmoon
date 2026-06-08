@@ -30,6 +30,10 @@ local _, addon = ...
 ---@field requiredStacks { itemKey: string, count: number }[]
 ---@field useQuestItems { itemId: number }[]?  -- panel: SecureActionButton `type=item` + bag `itemName` (Lucky's Grab-bag style)
 ---@field hideRequiredStacksWhenHaveItemIds number[]?  -- hide vendor "reagents needed" rows when any of these crafted/processed items are in bags
+---@field shoppingObjectiveItemId number?  -- crafted/hand-in item; vendor rows hide when quest progress + that item in bags cover the objective
+---@field shoppingProgressItemId number?  -- quest-log objective item when vendor mat is not kit-crafted (cooking)
+---@field shoppingConsumedByQuestItemId number?  -- vendor reagent spent when this quest item is used (e.g. flour via Plump Frog)
+---@field shoppingProgressCreditItemIds number[]?  -- bag items that count toward objective progress (e.g. breaded frog before frying)
 
 ---@class ItemDef
 ---@field key string
@@ -141,11 +145,12 @@ local QUESTS = {
     name = "A Fizzy Fusion",
     profession = "alchemy",
     skillLineId = PROFESSION_SKILL_LINE.alchemy,
-    --- Cocktail Shaker (Wowhead item=72043): Use to mix drinks for the quest objective.
+    --- Cocktail Shaker (72043) crafts Moonberry Fizz (72044) from vendor juices.
     useQuestItems = {
       { itemId = 72043 },
+      { itemId = 72044 },
     },
-    --- Moonberry Fizz (72044): crafted in the shaker from vendor juices; no need to show those rows once you have fizz.
+    shoppingObjectiveItemId = 72044,
     hideRequiredStacksWhenHaveItemIds = { 72044 },
     requiredStacks = {
       { itemKey = "moonberry_juice",   count = 5 },
@@ -177,11 +182,15 @@ local QUESTS = {
     name = "Putting the Crunch in the Frog",
     profession = "cooking",
     skillLineId = PROFESSION_SKILL_LINE.cooking,
-    --- Plump Frogs (72056) + flour → Breaded Frog (72057); breaded → fry at cauldron (Wowhead 29509 / item pages).
+    --- Plump Frog (72056) consumes flour in bags when used; breaded (72057) → fry → Crunchy Frog (72058).
     useQuestItems = {
       { itemId = 72056 },
       { itemId = 72057 },
+      { itemId = 72058 },
     },
+    shoppingProgressItemId = 72058,
+    shoppingConsumedByQuestItemId = 72056,
+    shoppingProgressCreditItemIds = { 72057 },
     hideRequiredStacksWhenHaveItemIds = { 72057 },
     requiredStacks = { { itemKey = "simple_flour", count = 5 } },
   },
@@ -228,12 +237,13 @@ local QUESTS = {
     name = "Writing the Future",
     profession = "inscription",
     skillLineId = PROFESSION_SKILL_LINE.inscription,
-    --- Bundle of Exotic Herbs (71971) → Prophetic Ink (71972) + Light Parchment → fortunes (Wowhead 29515 / item pages).
+    --- Bundle of Exotic Herbs (71971) → Prophetic Ink (71972) + Light Parchment → Sayge's Fortune (71974).
     useQuestItems = {
       { itemId = 71971 },
       { itemId = 71972 },
+      { itemId = 71974 },
     },
-    --- Sayge's Fortunes (71974): once you have crafted fortunes, vendor parchment row is unnecessary.
+    shoppingObjectiveItemId = 71974,
     hideRequiredStacksWhenHaveItemIds = { 71974 },
     requiredStacks = { { itemKey = "light_parchment", count = 5 } },
   },
@@ -254,11 +264,12 @@ local QUESTS = {
     name = "Eyes on the Prizes",
     profession = "leatherworking",
     skillLineId = PROFESSION_SKILL_LINE.leatherworking,
-    --- Darkmoon Craftsman's Kit (71977) crafts Darkmoon Prize (71976) with vendor mats.
+    --- Darkmoon Craftsman's Kit (71977) crafts Darkmoon Prize (71976) with vendor mats (2 baubles per prize).
     useQuestItems = {
       { itemId = 71977 },
       { itemId = 71976 },
     },
+    shoppingObjectiveItemId = 71976,
     hideRequiredStacksWhenHaveItemIds = { 71976 },
     requiredStacks = {
       { itemKey = "shiny_bauble",  count = 10 },
@@ -292,6 +303,7 @@ local QUESTS = {
       { itemId = 72048 },
       { itemId = 72049 },
     },
+    shoppingObjectiveItemId = 72049,
     hideRequiredStacksWhenHaveItemIds = { 72049 },
     requiredStacks = {
       { itemKey = "coarse_thread", count = 1 },

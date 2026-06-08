@@ -225,7 +225,9 @@ function UI:Refresh()
             local itemId = def.itemId
             local need = stack.count
             local have = addon:GetItemCountCompat(itemId)
-            local still = addon.QuantityAssist:GetStillNeed(itemId, need)
+            local still = addon:GetShoppingIngredientStillNeed(q.questId, itemId, need)
+            local progressShopping = q.shoppingObjectiveItemId or q.shoppingConsumedByQuestItemId
+            local displayNeed = progressShopping and (have + still) or need
 
             local ingredientName = addon:GetItemNameByIDCompat(itemId) or def.name
             irow.nameFs:SetText(ingredientName)
@@ -234,8 +236,8 @@ function UI:Refresh()
               irow.iconHit.dtdItemId = itemId
               irow.iconHit.dtdItemName = ingredientName
             end
-            irow.cntFs:SetText(("%d/%d"):format(math.min(have, need), need))
-            colorCount(irow.cntFs, have, need)
+            irow.cntFs:SetText(("%d/%d"):format(math.min(have, displayNeed), displayNeed))
+            colorCount(irow.cntFs, have, displayNeed)
 
             irow.bg.dtdItemName = ingredientName
             irow.bg:SetScript("OnClick", function()
@@ -250,13 +252,20 @@ function UI:Refresh()
             irow.buy.dtdItemKey = itemKey
             irow.buy.dtdNeed = still
 
-            --- Pooled frames can keep disabled state from earlier paints; always restore clickability.
             irow.bg:Enable()
-            irow.pull:Enable()
-            irow.buy:Enable()
             if still > 0 then
               irow.pull:Show()
               irow.buy:Show()
+              if addon.QuantityAssist:CanPullIngredient(still) then
+                irow.pull:Enable()
+              else
+                irow.pull:Disable()
+              end
+              if addon.QuantityAssist:CanBuyIngredient(itemId, still) then
+                irow.buy:Enable()
+              else
+                irow.buy:Disable()
+              end
             else
               irow.pull:Hide()
               irow.buy:Hide()

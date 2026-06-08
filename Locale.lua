@@ -69,9 +69,6 @@ local enUS = {
   SLASH_SCALE_SET = "|cfffeaa00Down to Darkmoon:|r Panel scale set to |cffffffff%.2f|r (saved).",
   SLASH_CALDEBUG_USAGE = "|cfffeaa00Down to Darkmoon:|r /dtdm caldebug — print Darkmoon calendar API rows to chat.",
 
-  MINIMAP_UPDATE_NEXT_DATE = "Update next date",
-  MINIMAP_TOOLTIP_RIGHT_CLICK = "Right-click for options.",
-  MSG_NEXT_DATE_UPDATED = "Next Faire date refreshed.",
 }
 
 local locales = {

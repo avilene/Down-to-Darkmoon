@@ -464,6 +464,94 @@ function addon:GetQuestObjectiveEntries(questId)
   return out
 end
 
+--- First quantity objective from the quest log (e.g. Moonberry Fizz 3/5).
+function addon:GetQuestQuantityObjectiveProgress(questId)
+  if not questId or not C_QuestLog or type(C_QuestLog.IsOnQuest) ~= "function" or not C_QuestLog.IsOnQuest(questId) then
+    return nil, nil
+  end
+  if type(C_QuestLog.GetQuestObjectives) ~= "function" then
+    return nil, nil
+  end
+  local ok, objs = pcall(C_QuestLog.GetQuestObjectives, questId)
+  if not ok or type(objs) ~= "table" then
+    return nil, nil
+  end
+  for _, o in ipairs(objs) do
+    if type(o.numRequired) == "number" and o.numRequired > 0 then
+      return o.numFulfilled or 0, o.numRequired
+    end
+  end
+  return nil, nil
+end
+
+--- Vendor mats still needed for one ingredient when `shoppingObjectiveItemId` is set on the quest def.
+--- `stackNeed` is the full-quest vendor count from `requiredStacks` (e.g. 10 baubles for 5 prizes → ratio 2:1).
+local function shoppingStillNeedFromObjectiveProgress(questId, progressItemId, ingredientItemId, stackNeed)
+  local fulfilled, required = addon:GetQuestQuantityObjectiveProgress(questId)
+  if not required or not stackNeed then
+    return nil
+  end
+  local objectiveInBags = addon:GetItemCountCompat(progressItemId)
+  local pairsStill = math.max(0, required - (fulfilled or 0) - objectiveInBags)
+  if pairsStill <= 0 then
+    return 0
+  end
+  local needForRemaining = math.ceil(pairsStill * stackNeed / required)
+  return math.max(0, needForRemaining - addon:GetItemCountCompat(ingredientItemId))
+end
+
+--- Flour (etc.) still needed when a quest item consumes vendor mats from bags (cooking: Plump Frog + flour).
+local function shoppingStillNeedFromQuestItemConsumption(questId, qdef, ingredientItemId)
+  local progressId = qdef.shoppingProgressItemId
+  local consumerId = qdef.shoppingConsumedByQuestItemId
+  if not progressId or not consumerId then
+    return nil
+  end
+  local fulfilled, required = addon:GetQuestQuantityObjectiveProgress(questId)
+  if not required then
+    return nil
+  end
+  local credited = addon:GetItemCountCompat(progressId)
+  if type(qdef.shoppingProgressCreditItemIds) == "table" then
+    for _, itemId in ipairs(qdef.shoppingProgressCreditItemIds) do
+      if type(itemId) == "number" then
+        credited = credited + addon:GetItemCountCompat(itemId)
+      end
+    end
+  end
+  local workStill = math.max(0, required - (fulfilled or 0) - credited)
+  if workStill <= 0 then
+    return 0
+  end
+  return math.max(0, addon:GetItemCountCompat(consumerId) - addon:GetItemCountCompat(ingredientItemId))
+end
+
+--- How many of `ingredientItemId` are still needed for vendor/shopping rows (progress-aware when configured).
+function addon:GetShoppingIngredientStillNeed(questId, ingredientItemId, stackNeed)
+  if not questId or not ingredientItemId or not stackNeed then
+    return 0
+  end
+  local qdef = self:GetProfessionQuestDef(questId)
+  if qdef and type(qdef.shoppingObjectiveItemId) == "number" then
+    local progressStill = shoppingStillNeedFromObjectiveProgress(
+      questId,
+      qdef.shoppingObjectiveItemId,
+      ingredientItemId,
+      stackNeed
+    )
+    if progressStill ~= nil then
+      return progressStill
+    end
+  end
+  if qdef and type(qdef.shoppingConsumedByQuestItemId) == "number" then
+    local consumedStill = shoppingStillNeedFromQuestItemConsumption(questId, qdef, ingredientItemId)
+    if consumedStill ~= nil then
+      return consumedStill
+    end
+  end
+  return self.QuantityAssist:GetStillNeed(ingredientItemId, stackNeed)
+end
+
 local function questRequiredStacksSatisfied(qdef)
   if not qdef or type(qdef.requiredStacks) ~= "table" then
     return false
@@ -488,6 +576,14 @@ function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
   end
   local qdef = self:GetProfessionQuestDef(questId)
   local sid = self:GetQuestLogSpecialItemIdForQuest(questId)
+
+  if qdef and type(qdef.shoppingObjectiveItemId) == "number" then
+    return self:GetShoppingIngredientStillNeed(questId, itemId, need) > 0
+  end
+
+  if qdef and type(qdef.shoppingConsumedByQuestItemId) == "number" then
+    return self:GetShoppingIngredientStillNeed(questId, itemId, need) > 0
+  end
 
   if qdef and type(qdef.hideRequiredStacksWhenHaveItemIds) == "table" then
     for _, uid in ipairs(qdef.hideRequiredStacksWhenHaveItemIds) do
@@ -514,11 +610,8 @@ function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
     end
   end
 
-  local still = self.QuantityAssist:GetStillNeed(itemId, need)
-  if still <= 0 then
-    return false
-  end
-  return true
+  local still = self:GetShoppingIngredientStillNeed(questId, itemId, need)
+  return still > 0
 end
 
 function addon:TogglePanel()
@@ -657,8 +750,18 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     return
   end
   local Pit = Enum.PlayerInteractionType
+  local function interactionRefreshesPanel(interactionType)
+    if not Pit or not interactionType then
+      return false
+    end
+    return interactionType == Pit.Merchant
+      or interactionType == Pit.Vendor
+      or interactionType == Pit.Banker
+      or interactionType == Pit.CharacterBanker
+      or interactionType == Pit.AccountBanker
+  end
   if Pit and event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" then
-    if arg1 == Pit.Merchant or arg1 == Pit.Vendor then
+    if interactionRefreshesPanel(arg1) then
       if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
         addon.UI:Refresh()
       end
@@ -666,7 +769,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     end
   end
   if Pit and event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" then
-    if arg1 == Pit.Merchant or arg1 == Pit.Vendor then
+    if interactionRefreshesPanel(arg1) then
       if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
         addon.UI:Refresh()
       end

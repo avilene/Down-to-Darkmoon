@@ -248,14 +248,8 @@ function UI:GetItemRow(i)
       local qty = self.dtdBuyQty
       if idxm and qty and qty > 0 then
         addon.QuantityAssist:BuyFromMerchant(idxm, qty)
-        return
-      end
-      local itemKey = self.dtdItemKey
-      local merchOpen = addon.QuantityAssist:IsMerchantUIOpen()
-      if merchOpen and idxm then
+      elseif idxm then
         print(L.MSG_CANNOT_BUY_NOW)
-      elseif itemKey then
-        addon.Navigation:SetWaypointForItem(itemKey)
       end
     end)
     buy:HookScript("OnEnter", function(self)
