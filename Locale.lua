@@ -62,8 +62,11 @@ local enUS = {
   TIP_USE_HEADER = "Use quest item",
   TIP_USE_COMBAT = "Unavailable in combat (try again out of combat).",
   TIP_USE_BAGS = "Uses the item in your bags.",
+  TIP_USE_NEED_ANVIL = "Move near an anvil on the fairgrounds first.",
+  TIP_USE_CLICK_ANVIL_WAYPOINT = "Click the row to set a waypoint to the closest anvil.",
 
   COUNT_IN_BAGS = "%d in bags",
+  COUNT_NEED_ANVIL = "Need anvil",
   ITEM_FALLBACK = "Item %s",
 
   MSG_CANNOT_PULL_COMBAT = "|cfffeaa00Down to Darkmoon:|r Cannot pull from the bank in combat.",
@@ -81,6 +84,7 @@ local enUS = {
   MSG_PULL_ALL_STOPPED = "|cfffeaa00Down to Darkmoon:|r Withdraw stopped (bank closed, bags full, or nothing left in bank).",
   MSG_WAYPOINT_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Waypoint — %s (via Darkmoon portal first)",
   MSG_MAP_PIN_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Map pin — Darkmoon portal, then %s",
+  MSG_WAYPOINT_ANVIL = "|cfffeaa00Down to Darkmoon:|r Waypoint — %s",
 
   SLASH_DEBUG = "|cfffeaa00Down to Darkmoon:|r Debug logging:",
   SLASH_ON = "|cff33ff33ON|r",

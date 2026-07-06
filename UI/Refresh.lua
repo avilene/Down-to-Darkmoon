@@ -33,6 +33,66 @@ local function appendPoiCoordHint(text, profession)
   return text .. (" |cff9d9d9d(%.1f, %.1f)|r"):format(p.x, p.y)
 end
 
+function UI:StopProximityPoll()
+  if self.mainFrame then
+    self.mainFrame:SetScript("OnUpdate", nil)
+  end
+  self._proximityNearOk = nil
+end
+
+function UI:UpdateProximityPoll()
+  if not self.mainFrame or not self.mainFrame:IsShown() then
+    return
+  end
+  local udef = addon:GetActiveRequireNearUseQuestItem()
+  if not udef then
+    self:StopProximityPoll()
+    return
+  end
+  local nearOk = addon:IsUseQuestItemNearRequirementMet(udef)
+  self._proximityNearOk = nearOk
+  if self.mainFrame:GetScript("OnUpdate") then
+    return
+  end
+  local elapsedAcc = 0
+  self.mainFrame:SetScript("OnUpdate", function(frame, elapsed)
+    if not frame:IsShown() then
+      addon.UI:StopProximityPoll()
+      return
+    end
+    elapsedAcc = elapsedAcc + elapsed
+    if elapsedAcc < 0.5 then
+      return
+    end
+    elapsedAcc = 0
+    local active = addon:GetActiveRequireNearUseQuestItem()
+    if not active then
+      addon.UI:StopProximityPoll()
+      return
+    end
+    local nowNear = addon:IsUseQuestItemNearRequirementMet(active)
+    if nowNear ~= addon.UI._proximityNearOk then
+      addon.UI._proximityNearOk = nowNear
+      if addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
+        addon.UI:Refresh()
+      end
+    end
+  end)
+end
+
+--- Full panel paint; no-op when the window is hidden.
+function UI:RefreshIfShown()
+  if self.mainFrame and self.mainFrame:IsShown() then
+    self:Refresh()
+  end
+end
+
+--- Panel open: paint once, then start proximity polling if needed.
+function UI:OnPanelShown()
+  self:Refresh()
+  self:UpdateProximityPoll()
+end
+
 function UI:Refresh()
   if not self.mainFrame or not self.mainFrame:IsShown() then
     return
@@ -172,18 +232,38 @@ function UI:Refresh()
                 urow.iconHit.dtdItemId = itemId
                 urow.iconHit.dtdItemName = name
               end
-              urow.cntFs:SetText(L.COUNT_IN_BAGS:format(have))
-              urow.cntFs:SetTextColor(0.65, 0.85, 1)
+
+              local requireNear = udef.requireNear
+              local nearOk = not requireNear or addon:IsUseQuestItemNearRequirementMet(udef)
+              local nearUdef = requireNear and udef or nil
+              if urow.bg then
+                urow.bg.dtdNearOk = nearOk
+                urow.bg.dtdRequireNearUdef = nearUdef
+              end
+              if urow.iconHit then
+                urow.iconHit.dtdNearOk = nearOk
+                urow.iconHit.dtdRequireNearUdef = nearUdef
+              end
+
+              if nearOk then
+                urow.cntFs:SetText(L.COUNT_IN_BAGS:format(have))
+                urow.cntFs:SetTextColor(0.65, 0.85, 1)
+              else
+                urow.cntFs:SetText(L.COUNT_NEED_ANVIL)
+                urow.cntFs:SetTextColor(1, 0.55, 0.25)
+              end
 
               local combat = InCombatLockdown()
               local ub = urow.useBtn
               ub.dtdQuestId = q.questId
               ub.dtdItemId = itemId
+              ub.dtdNearOk = nearOk
+              ub.dtdRequireNearUdef = nearUdef
               ub:Enable()
               --- Secure item setup: use localized bag item name (same requirement as Blizzard-style secure item buttons).
               ub:SetAttribute("type", nil)
               ub:SetAttribute("item", nil)
-              if not combat then
+              if not combat and nearOk then
                 ub:SetAttribute("type", "item")
                 ub:SetAttribute("item", bagName)
               end
@@ -192,9 +272,16 @@ function UI:Refresh()
               else
                 addon:SetItemIconTexture(ub.iconTex, itemId)
               end
-              ub.iconTex:SetAlpha(1)
-              if ub.useLabel then
-                ub.useLabel:SetAlpha(0.85)
+              if nearOk then
+                ub.iconTex:SetAlpha(1)
+                if ub.useLabel then
+                  ub.useLabel:SetAlpha(0.85)
+                end
+              else
+                ub.iconTex:SetAlpha(0.45)
+                if ub.useLabel then
+                  ub.useLabel:SetAlpha(0.45)
+                end
               end
 
               y = y + C.ITEM_ROW_H + C.ROW_GAP

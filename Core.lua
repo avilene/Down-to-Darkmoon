@@ -434,6 +434,55 @@ function addon:ShouldShowQuestUseItemRows(questId, ignored, completed)
   return ok and onQuest == true
 end
 
+--- Active use-item row with a `requireNear` gate (e.g. Iron Stock at an anvil).
+function addon:GetActiveRequireNearUseQuestItem()
+  if not self.Data or not self.Data.QUESTS then
+    return nil
+  end
+  local skill = self:PlayerSkillLineSet()
+  for _, q in ipairs(self.Data.QUESTS) do
+    if skill[q.skillLineId] then
+      local completed = self:IsProfessionQuestCompleted(q.questId)
+      local ignored = self:IsProfessionQuestIgnored(q.questId)
+      if self:ShouldShowQuestUseItemRows(q.questId, ignored, completed) and type(q.useQuestItems) == "table" then
+        for _, udef in ipairs(q.useQuestItems) do
+          if udef and udef.requireNear and udef.itemId then
+            if self:GetItemCountCompat(udef.itemId) > 0
+              and self:QuestLogSpecialItemMatchesItemId(q.questId, udef.itemId) then
+              return udef
+            end
+          end
+        end
+      end
+    end
+  end
+  return nil
+end
+
+function addon:IsUseQuestItemNearRequirementMet(udef)
+  if not udef or not udef.requireNear then
+    return true
+  end
+  local req = udef.requireNear
+  if type(req.locations) ~= "table" then
+    return true
+  end
+  return self.VendorRouting:IsPlayerNearAny(req.locations, req.radiusPct or 3)
+end
+
+function addon:SetWaypointToClosestRequireNearLocation(udef)
+  if not udef or not udef.requireNear or type(udef.requireNear.locations) ~= "table" then
+    return
+  end
+  local loc = self.VendorRouting:GetClosestLocation(udef.requireNear.locations)
+  if loc and self.Navigation then
+    self.Navigation:SetWaypointPct(loc.mapId, loc.x, loc.y, loc.label)
+    if self.L and self.L.MSG_WAYPOINT_ANVIL then
+      print(self.L.MSG_WAYPOINT_ANVIL:format(loc.label))
+    end
+  end
+end
+
 --- Objective lines from the quest log API (same text/progress as the default tracker).
 function addon:GetQuestObjectiveEntries(questId)
   if not questId or not C_QuestLog or type(C_QuestLog.IsOnQuest) ~= "function" or not C_QuestLog.IsOnQuest(questId) then
@@ -689,6 +738,7 @@ function addon:TogglePanel()
   if f:IsShown() then
     f:Hide()
     self:SetPanelHidden(true)
+    self.UI:StopProximityPoll()
     self:LogDebug("ui", "Panel hidden via toggle.")
   else
     f:Show()
@@ -696,7 +746,7 @@ function addon:TogglePanel()
     self:LogDebug("ui", "Panel shown via toggle.")
     addon._inactiveBootFrozen = false
     addon.Calendar:RefreshActiveState()
-    self.UI:Refresh()
+    self.UI:OnPanelShown()
     addon.Calendar:ScheduleRefresh(0)
   end
 end

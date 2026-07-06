@@ -70,6 +70,74 @@ function VendorRouting:DistanceSqBetweenMaps(mapIdA, xPctA, yPctA, mapIdB, xPctB
   return math.huge
 end
 
+function VendorRouting:GetPlayerMapPositionPct()
+  local pm = C_Map.GetBestMapForUnit("player")
+  if not pm then
+    return nil
+  end
+  local pp = C_Map.GetPlayerMapPosition(pm, "player")
+  if not pp then
+    return nil
+  end
+  local px, py = pp:GetXY()
+  return pm, px * 100, py * 100
+end
+
+function VendorRouting:IsPlayerWithinRadius(mapId, x, y, radiusPct)
+  if not mapId or not x or not y or not radiusPct then
+    return false
+  end
+  local pm, px, py = self:GetPlayerMapPositionPct()
+  if not pm or not px or not py then
+    return false
+  end
+  if pm == mapId then
+    local dx = (px - x) / 100
+    local dy = (py - y) / 100
+    local threshold = (radiusPct / 100) * (radiusPct / 100)
+    return dx * dx + dy * dy <= threshold
+  end
+  local dSq = self:DistanceSqBetweenMaps(pm, px, py, mapId, x, y)
+  local refDistSq = self:DistanceSqBetweenMaps(mapId, x, y, mapId, x + radiusPct, y)
+  if refDistSq and refDistSq < math.huge then
+    return dSq <= refDistSq
+  end
+  return false
+end
+
+function VendorRouting:IsPlayerNearAny(locations, radiusPct)
+  if type(locations) ~= "table" or not radiusPct then
+    return false
+  end
+  for _, loc in ipairs(locations) do
+    if loc and self:IsPlayerWithinRadius(loc.mapId, loc.x, loc.y, radiusPct) then
+      return true
+    end
+  end
+  return false
+end
+
+function VendorRouting:GetClosestLocation(locations)
+  if type(locations) ~= "table" or #locations == 0 then
+    return nil
+  end
+  local pm, px, py = self:GetPlayerMapPositionPct()
+  if not pm or not px or not py then
+    return locations[1]
+  end
+  local best = locations[1]
+  local bestD = self:DistanceSqBetweenMaps(pm, px, py, best.mapId, best.x, best.y)
+  for i = 2, #locations do
+    local loc = locations[i]
+    local d = self:DistanceSqBetweenMaps(pm, px, py, loc.mapId, loc.x, loc.y)
+    if d < bestD then
+      bestD = d
+      best = loc
+    end
+  end
+  return best
+end
+
 function VendorRouting:GetClosestVendor(vendors)
   local list = self:FilterVendors(vendors)
   if #list == 0 then

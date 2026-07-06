@@ -78,6 +78,9 @@ function UI:CreateMainFrame()
   f:EnableMouse(true)
   f:SetScript("OnHide", function()
     addon:SetPanelHidden(true)
+    if addon.UI then
+      addon.UI:StopProximityPoll()
+    end
   end)
 
   local titleBar = CreateFrame("Frame", nil, f)

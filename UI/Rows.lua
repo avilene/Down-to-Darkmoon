@@ -63,6 +63,10 @@ local function TryUseQuestRowItem(self)
     print(L.MSG_CANNOT_USE_COMBAT)
     return
   end
+  if self and self.dtdNearOk == false and self.dtdRequireNearUdef then
+    addon:SetWaypointToClosestRequireNearLocation(self.dtdRequireNearUdef)
+    return
+  end
   local itemId = self and self.dtdItemId
   if not itemId or not UseFirstBagItemById(itemId) then
     print(L.MSG_CANNOT_USE_BAGS)
@@ -388,6 +392,9 @@ function UI:GetQuestUseItemRow(i)
       GameTooltip:AddLine(L.TIP_USE_HEADER, 1, 0.95, 0.7)
       if InCombatLockdown() then
         GameTooltip:AddLine(L.TIP_USE_COMBAT, 1, 0.35, 0.35, true)
+      elseif self.dtdNearOk == false and self.dtdRequireNearUdef then
+        GameTooltip:AddLine(L.TIP_USE_NEED_ANVIL, 1, 0.55, 0.25, true)
+        GameTooltip:AddLine(L.TIP_USE_CLICK_ANVIL_WAYPOINT, 0.85, 0.85, 0.9, true)
       else
         GameTooltip:AddLine(
           L.TIP_USE_BAGS,

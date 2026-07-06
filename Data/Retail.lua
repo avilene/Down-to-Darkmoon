@@ -28,7 +28,7 @@ local _, addon = ...
 ---@field profession string
 ---@field skillLineId number
 ---@field requiredStacks { itemKey: string, count: number }[]
----@field useQuestItems { itemId: number }[]?  -- panel: SecureActionButton `type=item` + bag `itemName` (Lucky's Grab-bag style)
+---@field useQuestItems { itemId: number, requireNear: { radiusPct: number, locations: { mapId: number, x: number, y: number, label: string }[] }? }[]?  -- panel: SecureActionButton `type=item` + bag `itemName` (Lucky's Grab-bag style)
 ---@field hideRequiredStacksWhenHaveItemIds number[]?  -- hide vendor "reagents needed" rows when any of these crafted/processed items are in bags
 ---@field shoppingObjectiveItemId number?  -- crafted/hand-in item; vendor rows hide when quest progress + that item in bags cover the objective
 ---@field shoppingProgressItemId number?  -- quest-log objective item when vendor mat is not kit-crafted (cooking)
@@ -172,7 +172,16 @@ local QUESTS = {
     skillLineId = PROFESSION_SKILL_LINE.blacksmithing,
     --- Iron Stock (71964) at the anvil for Horseshoes; Horseshoe (71967) to apply to Baby (Wowhead quest/related items).
     useQuestItems = {
-      { itemId = 71964 },
+      {
+        itemId = 71964,
+        requireNear = {
+          radiusPct = 3,
+          locations = {
+            { mapId = 407, x = 55.0, y = 70.6, label = "Anvil (near Chronos)" },
+            { mapId = 407, x = 47.6, y = 66.2, label = "Anvil (heirloom tent)" },
+          },
+        },
+      },
       { itemId = 71967 },
     },
     requiredStacks = {},
