@@ -12,7 +12,16 @@ local function colorCount(fs, have, need)
   end
 end
 
---- Darkmoon Island POI map % (Retail uiMap 408); shown when TomTom is absent so players can place pins manually.
+function UI:UpdateBulkActionButtons()
+  if not self.mainFrame or not self.mainFrame:IsShown() then
+    return
+  end
+  if not self.buyAllBtn or not self.pullAllBtn then
+    return
+  end
+  addon.QuantityAssist:UpdateBulkButtonState({ { buy = self.buyAllBtn, pull = self.pullAllBtn } })
+end
+
 local function appendPoiCoordHint(text, profession)
   if not text or not profession or addon.Navigation:IsTomTomLoaded() then
     return text
@@ -28,6 +37,7 @@ function UI:Refresh()
   if not self.mainFrame or not self.mainFrame:IsShown() then
     return
   end
+  self:UpdateBulkActionButtons()
 
   if not addon:IsDarkmoonActive() then
     --- After schedule has decided “inactive” once, skip repeated full paints from bag/merchant spam on boot.
@@ -90,25 +100,7 @@ function UI:Refresh()
 
       local completed = addon:IsProfessionQuestCompleted(q.questId)
       local ignored = addon:IsProfessionQuestIgnored(q.questId)
-      local objectiveCompleted = false
-      if not completed and C_QuestLog and type(C_QuestLog.IsOnQuest) == "function" and C_QuestLog.IsOnQuest(q.questId)
-        and type(C_QuestLog.GetQuestObjectives) == "function" then
-        local ok, objs = pcall(C_QuestLog.GetQuestObjectives, q.questId)
-        if ok and type(objs) == "table" then
-          local hasObj = false
-          local allDone = true
-          for _, o in ipairs(objs) do
-            if o and type(o.finished) == "boolean" then
-              hasObj = true
-              if not o.finished then
-                allDone = false
-                break
-              end
-            end
-          end
-          objectiveCompleted = hasObj and allDone
-        end
-      end
+      local objectiveCompleted = addon:IsQuestObjectivePhaseComplete(q.questId)
       row.qBtn.questCompleted = completed
       row.qBtn.dtdIgnored = ignored
       if row.qBtn.profIcon then

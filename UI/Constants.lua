@@ -30,6 +30,7 @@ addon.UI.C = {
   ACTION_BTN_W = ACTION_BTN_W,
   ACTION_BTN_H = ACTION_BTN_H,
   ACTION_BTN_GAP = ACTION_BTN_GAP,
+  BULK_ACTION_BTN_W = 68,
   --- Right margin + Buy + gap + Pull (matches item row anchors).
   ITEM_ACTION_BAR_OFFSET = 2 + ACTION_BTN_W + ACTION_BTN_GAP + ACTION_BTN_W,
   QUEST_USE_BTN_SIZE = ITEM_ROW_H - 2,

@@ -107,7 +107,7 @@ function UI:CreateMainFrame()
 
   local title = titleBar:CreateFontString(nil, "OVERLAY", "SystemFont_Med2")
   title:SetPoint("LEFT", titleIcon, "RIGHT", 8, 0)
-  title:SetPoint("RIGHT", titleBar, "RIGHT", -40, 0)
+  title:SetPoint("RIGHT", titleBar, "RIGHT", -178, 0)
   title:SetJustifyH("LEFT")
   title:SetTextColor(C.COLOR_TITLE[1], C.COLOR_TITLE[2], C.COLOR_TITLE[3])
   title:SetText(L.PANEL_TITLE)
@@ -140,6 +140,62 @@ function UI:CreateMainFrame()
     closeLbl:SetTextColor(0.88, 0.88, 0.92)
   end)
 
+  local buyAllBtn = self:CreateAddonActionButton(titleBar, L.BTN_BUY_ALL)
+  buyAllBtn:SetSize(C.BULK_ACTION_BTN_W, C.ACTION_BTN_H)
+  buyAllBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
+  buyAllBtn:SetFrameLevel(220)
+  buyAllBtn:Hide()
+  buyAllBtn:SetScript("OnClick", function()
+    addon.QuantityAssist:BuyAllFromMerchant()
+  end)
+  buyAllBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine(L.TIP_BUY_ALL_HEADER, 1, 0.95, 0.7)
+    local qa = addon.QuantityAssist
+    if InCombatLockdown() then
+      GameTooltip:AddLine(L.TIP_BUY_ALL_COMBAT, 1, 0.35, 0.35, true)
+    elseif not qa:IsMerchantUIOpen() then
+      GameTooltip:AddLine(L.TIP_BUY_ALL_NO_VENDOR, 0.75, 0.75, 0.8, true)
+    elseif not qa:HasAnyShoppingNeeds() then
+      GameTooltip:AddLine(L.TIP_BUY_ALL_NOTHING, 0.55, 0.55, 0.55, true)
+    elseif not qa:CanBuyAll() then
+      GameTooltip:AddLine(L.TIP_BUY_ALL_NONE_AFFORD, 0.9, 0.75, 0.55, true)
+    else
+      GameTooltip:AddLine(L.TIP_BUY_ALL_CAN, 0.85, 0.85, 0.9, true)
+    end
+    GameTooltip:Show()
+  end)
+  buyAllBtn:SetScript("OnLeave", GameTooltip_Hide)
+
+  local pullAllBtn = self:CreateAddonActionButton(titleBar, L.BTN_PULL_ALL)
+  pullAllBtn:SetSize(C.BULK_ACTION_BTN_W, C.ACTION_BTN_H)
+  pullAllBtn:SetPoint("RIGHT", buyAllBtn, "LEFT", -C.ACTION_BTN_GAP, 0)
+  pullAllBtn:SetFrameLevel(220)
+  pullAllBtn:Hide()
+  pullAllBtn:SetScript("OnClick", function()
+    addon.QuantityAssist:PullAllFromBank()
+  end)
+  pullAllBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+    GameTooltip:AddLine(L.TIP_PULL_ALL_HEADER, 1, 0.95, 0.7)
+    local qa = addon.QuantityAssist
+    if InCombatLockdown() then
+      GameTooltip:AddLine(L.TIP_PULL_ALL_COMBAT, 1, 0.35, 0.35, true)
+    elseif qa:IsPullQueueActive() then
+      GameTooltip:AddLine(L.TIP_PULL_ALL_IN_PROGRESS, 0.75, 0.75, 0.8, true)
+    elseif not qa:IsBankInventoryAccessible() then
+      GameTooltip:AddLine(L.TIP_PULL_ALL_NO_BANK, 0.75, 0.75, 0.8, true)
+    elseif not qa:HasAnyShoppingNeeds() then
+      GameTooltip:AddLine(L.TIP_PULL_ALL_NOTHING, 0.55, 0.55, 0.55, true)
+    elseif not qa:CanPullAll() then
+      GameTooltip:AddLine(L.TIP_PULL_ALL_NONE_IN_BANK, 0.9, 0.75, 0.55, true)
+    else
+      GameTooltip:AddLine(L.TIP_PULL_ALL_CAN, 0.85, 0.85, 0.9, true)
+    end
+    GameTooltip:Show()
+  end)
+  pullAllBtn:SetScript("OnLeave", GameTooltip_Hide)
+
   local inactiveBanner = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   inactiveBanner:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", C.PAD, -C.GAP_TITLE_TO_BODY)
   inactiveBanner:SetPoint("TOPRIGHT", titleBar, "BOTTOMRIGHT", -C.PAD, -C.GAP_TITLE_TO_BODY)
@@ -155,6 +211,8 @@ function UI:CreateMainFrame()
 
   self.mainFrame = f
   self.inactiveBanner = inactiveBanner
+  self.buyAllBtn = buyAllBtn
+  self.pullAllBtn = pullAllBtn
   self.content = content
   self.poolQuest = {}
   self.poolObjective = {}

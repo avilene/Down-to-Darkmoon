@@ -33,6 +33,7 @@ QuantityAssist.lua
 UI/Constants.lua
 UI/MainFrame.lua
 UI/Buttons.lua
+UI/BlizzardHooks.lua
 UI/Rows.lua
 UI/Refresh.lua
 Minimap.lua

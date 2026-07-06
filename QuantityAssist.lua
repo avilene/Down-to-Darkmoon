@@ -199,9 +199,11 @@ function QuantityAssist:GetBankCount(itemId)
 end
 
 ---Secure execution path: withdraw up to `take` from first matching bank stack into bags.
-function QuantityAssist:WithdrawFromBank(itemId, take)
+function QuantityAssist:WithdrawFromBank(itemId, take, silent)
   if InCombatLockdown() then
-    print(L.MSG_CANNOT_WITHDRAW_COMBAT)
+    if not silent then
+      print(L.MSG_CANNOT_WITHDRAW_COMBAT)
+    end
     return false
   end
   if not self:IsBankInventoryAccessible() then
@@ -212,12 +214,16 @@ function QuantityAssist:WithdrawFromBank(itemId, take)
   end
   local stacks = self:ScanBankForItem(itemId)
   if #stacks == 0 then
-    print(L.MSG_NO_BANK_STACKS)
+    if not silent then
+      print(L.MSG_NO_BANK_STACKS)
+    end
     return false
   end
   local bagSlot, invSlot = findFirstEmptyInventorySlot()
   if not bagSlot then
-    print(L.MSG_NO_BAG_SPACE)
+    if not silent then
+      print(L.MSG_NO_BAG_SPACE)
+    end
     return false
   end
   local stack = stacks[1]
@@ -314,4 +320,246 @@ function QuantityAssist:CanBuyIngredient(itemId, need)
     return false
   end
   return self:FindMerchantIndex(itemId) ~= nil
+end
+
+local PULL_QUEUE_DELAY = 0.08
+
+function QuantityAssist:IsPullQueueActive()
+  return self._pullQueueActive == true
+end
+
+function QuantityAssist:CancelPullQueue(silent)
+  self._pullQueueActive = false
+  self._pullQueueTimer = nil
+  if not silent and self._pullQueueHadWork then
+    print(L.MSG_PULL_ALL_STOPPED)
+  end
+  self._pullQueueHadWork = false
+  if addon.UI and addon.UI.UpdateBulkActionButtons then
+    addon.UI:UpdateBulkActionButtons()
+  end
+  if addon.UI and addon.UI.BlizzardHooks and addon.UI.BlizzardHooks.UpdateButtons then
+    addon.UI.BlizzardHooks:UpdateButtons()
+  end
+end
+
+local function stillNeedForItem(itemId)
+  local maxStill = 0
+  for _, need in ipairs(addon:GetActiveShoppingNeeds()) do
+    if need.itemId == itemId and need.still > maxStill then
+      maxStill = need.still
+    end
+  end
+  return maxStill
+end
+
+function QuantityAssist:ProcessPullQueueTick()
+  if not self._pullQueueActive then
+    return
+  end
+  if InCombatLockdown() or not self:IsBankInventoryAccessible() then
+    self:CancelPullQueue(false)
+    return
+  end
+  local needs = addon:GetActiveShoppingNeeds()
+  if #needs == 0 then
+    self._pullQueueActive = false
+    self._pullQueueHadWork = false
+    print(L.MSG_PULL_ALL_DONE)
+    if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
+      addon.UI:Refresh()
+    end
+    if addon.UI and addon.UI.UpdateBulkActionButtons then
+      addon.UI:UpdateBulkActionButtons()
+    end
+    if addon.UI and addon.UI.BlizzardHooks and addon.UI.BlizzardHooks.UpdateButtons then
+      addon.UI.BlizzardHooks:UpdateButtons()
+    end
+    return
+  end
+  for _, need in ipairs(needs) do
+    local still = stillNeedForItem(need.itemId)
+    if still > 0 and self:GetBankCount(need.itemId) > 0 then
+      local ok = self:WithdrawFromBank(need.itemId, still, true)
+      if ok then
+        self._pullQueueHadWork = true
+        self._pullQueueTimer = C_Timer.After(PULL_QUEUE_DELAY, function()
+          QuantityAssist:ProcessPullQueueTick()
+        end)
+        if addon.UI and addon.UI.UpdateBulkActionButtons then
+          addon.UI:UpdateBulkActionButtons()
+        end
+        if addon.UI and addon.UI.BlizzardHooks and addon.UI.BlizzardHooks.UpdateButtons then
+          addon.UI.BlizzardHooks:UpdateButtons()
+        end
+        return
+      end
+      self._pullQueueActive = false
+      if self._pullQueueHadWork then
+        print(L.MSG_PULL_ALL_DONE)
+      else
+        print(L.MSG_PULL_ALL_STOPPED)
+      end
+      self._pullQueueHadWork = false
+      if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
+        addon.UI:Refresh()
+      end
+      if addon.UI and addon.UI.UpdateBulkActionButtons then
+        addon.UI:UpdateBulkActionButtons()
+      end
+      if addon.UI and addon.UI.BlizzardHooks and addon.UI.BlizzardHooks.UpdateButtons then
+        addon.UI.BlizzardHooks:UpdateButtons()
+      end
+      return
+    end
+  end
+  self._pullQueueActive = false
+  if self._pullQueueHadWork then
+    print(L.MSG_PULL_ALL_DONE)
+  else
+    print(L.MSG_PULL_ALL_STOPPED)
+  end
+  self._pullQueueHadWork = false
+  if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
+    addon.UI:Refresh()
+  end
+  if addon.UI and addon.UI.UpdateBulkActionButtons then
+    addon.UI:UpdateBulkActionButtons()
+  end
+  if addon.UI and addon.UI.BlizzardHooks and addon.UI.BlizzardHooks.UpdateButtons then
+    addon.UI.BlizzardHooks:UpdateButtons()
+  end
+end
+
+function QuantityAssist:PullAllFromBank()
+  if InCombatLockdown() then
+    print(L.MSG_CANNOT_PULL_COMBAT)
+    return false
+  end
+  if not self:IsBankInventoryAccessible() then
+    print(L.MSG_OPEN_BANK_PULL)
+    return false
+  end
+  if self:IsPullQueueActive() then
+    return false
+  end
+  if not self:CanPullAll() then
+    return false
+  end
+  self._pullQueueActive = true
+  self._pullQueueHadWork = false
+  self:ProcessPullQueueTick()
+  return true
+end
+
+function QuantityAssist:BuyAllFromMerchant()
+  if InCombatLockdown() then
+    print(L.MSG_CANNOT_BUY_COMBAT)
+    return false
+  end
+  if not self:IsMerchantUIOpen() then
+    return false
+  end
+  local bought = 0
+  for _, need in ipairs(addon:GetActiveShoppingNeeds()) do
+    local still = stillNeedForItem(need.itemId)
+    if still > 0 then
+      local midx = self:FindMerchantIndex(need.itemId)
+      if midx then
+        local qty = self:GetAffordableBuyQty(midx, still)
+        if qty and qty > 0 then
+          if self:BuyFromMerchant(midx, qty) then
+            bought = bought + 1
+          end
+        end
+      end
+    end
+  end
+  if bought > 0 then
+    print(L.MSG_BUY_ALL_DONE:format(bought))
+  else
+    print(L.MSG_BUY_ALL_NONE)
+  end
+  if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
+    addon.UI:Refresh()
+  end
+  if addon.UI and addon.UI.UpdateBulkActionButtons then
+    addon.UI:UpdateBulkActionButtons()
+  end
+  if addon.UI and addon.UI.BlizzardHooks and addon.UI.BlizzardHooks.UpdateButtons then
+    addon.UI.BlizzardHooks:UpdateButtons()
+  end
+  return bought > 0
+end
+
+function QuantityAssist:CanBuyAll()
+  if InCombatLockdown() or not self:IsMerchantUIOpen() then
+    return false
+  end
+  for _, need in ipairs(addon:GetActiveShoppingNeeds()) do
+    local still = stillNeedForItem(need.itemId)
+    if still > 0 then
+      local midx = self:FindMerchantIndex(need.itemId)
+      if midx and self:GetAffordableBuyQty(midx, still) > 0 then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+function QuantityAssist:CanPullAll()
+  if InCombatLockdown() or not self:IsBankInventoryAccessible() or self:IsPullQueueActive() then
+    return false
+  end
+  for _, need in ipairs(addon:GetActiveShoppingNeeds()) do
+    local still = stillNeedForItem(need.itemId)
+    if still > 0 and self:GetBankCount(need.itemId) > 0 then
+      return true
+    end
+  end
+  return false
+end
+
+function QuantityAssist:HasAnyShoppingNeeds()
+  return #(addon:GetActiveShoppingNeeds()) > 0
+end
+
+---@param buttons table[]? list of { buy?: Button, pull?: Button }
+function QuantityAssist:UpdateBulkButtonState(buttons)
+  if type(buttons) ~= "table" then
+    return
+  end
+  local hasNeeds = self:HasAnyShoppingNeeds()
+  local merchantOpen = self:IsMerchantUIOpen()
+  local bankOpen = self:IsBankInventoryAccessible()
+  local canBuy = self:CanBuyAll()
+  local canPull = self:CanPullAll()
+  local pullActive = self:IsPullQueueActive()
+  for _, entry in ipairs(buttons) do
+    if entry.buy then
+      local show = merchantOpen and hasNeeds
+      entry.buy:SetShown(show)
+      if show then
+        if canBuy then
+          entry.buy:Enable()
+        else
+          entry.buy:Disable()
+        end
+      end
+    end
+    if entry.pull then
+      local show = bankOpen and hasNeeds
+      entry.pull:SetShown(show)
+      if show then
+        if pullActive then
+          entry.pull:Disable()
+        elseif canPull then
+          entry.pull:Enable()
+        else
+          entry.pull:Disable()
+        end
+      end
+    end
+  end
 end

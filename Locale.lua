@@ -15,6 +15,8 @@ local enUS = {
   BTN_BUY = "Buy",
   BTN_PULL = "Pull",
   BTN_USE = "Use",
+  BTN_BUY_ALL = "Buy all",
+  BTN_PULL_ALL = "Pull all",
 
   TIP_IGNORED_HIDDEN = "Ignored on this character: shopping / Pull / Buy hidden.",
   TIP_RIGHT_CLICK_TRACK = "Right-click: track again.",
@@ -41,6 +43,22 @@ local enUS = {
   TIP_BUY_VENDOR_NO_SELL = "This merchant does not sell this item — click to route to a vendor that does.",
   TIP_BUY_CAN = "Click to buy up to what you can afford and still need.",
 
+  TIP_BUY_ALL_HEADER = "Buy all from vendor",
+  TIP_BUY_ALL_COMBAT = "Unavailable in combat.",
+  TIP_BUY_ALL_NO_VENDOR = "Open a vendor that sells materials you still need.",
+  TIP_BUY_ALL_NOTHING = "Nothing left to buy for your active quests.",
+  TIP_BUY_ALL_NONE_AFFORD = "This vendor does not sell any needed items you can afford right now.",
+  TIP_BUY_ALL_CAN = "Buy everything this vendor sells that you still need and can afford.",
+  TIP_BUY_ALL_IN_PROGRESS = "Buying…",
+
+  TIP_PULL_ALL_HEADER = "Pull all from bank",
+  TIP_PULL_ALL_COMBAT = "Unavailable in combat.",
+  TIP_PULL_ALL_NO_BANK = "Open your bank or Warband bank to withdraw materials.",
+  TIP_PULL_ALL_NOTHING = "Nothing left to withdraw for your active quests.",
+  TIP_PULL_ALL_NONE_IN_BANK = "No needed materials found in the bank right now.",
+  TIP_PULL_ALL_CAN = "Withdraw everything you still need from the bank (one stack at a time).",
+  TIP_PULL_ALL_IN_PROGRESS = "Withdrawing…",
+
   TIP_USE_HEADER = "Use quest item",
   TIP_USE_COMBAT = "Unavailable in combat (try again out of combat).",
   TIP_USE_BAGS = "Uses the item in your bags.",
@@ -57,6 +75,10 @@ local enUS = {
   MSG_CANNOT_WITHDRAW_COMBAT = "|cfffeaa00Down to Darkmoon:|r Cannot withdraw in combat.",
   MSG_NO_BANK_STACKS = "|cfffeaa00Down to Darkmoon:|r No matching stacks in bank.",
   MSG_NO_BAG_SPACE = "|cfffeaa00Down to Darkmoon:|r No empty bag space.",
+  MSG_BUY_ALL_DONE = "|cfffeaa00Down to Darkmoon:|r Bought |cffffffff%d|r item type(s) from this vendor.",
+  MSG_BUY_ALL_NONE = "|cfffeaa00Down to Darkmoon:|r Nothing to buy here (not sold, out of stock, or not enough coin).",
+  MSG_PULL_ALL_DONE = "|cfffeaa00Down to Darkmoon:|r Finished withdrawing from the bank.",
+  MSG_PULL_ALL_STOPPED = "|cfffeaa00Down to Darkmoon:|r Withdraw stopped (bank closed, bags full, or nothing left in bank).",
   MSG_WAYPOINT_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Waypoint — %s (via Darkmoon portal first)",
   MSG_MAP_PIN_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Map pin — Darkmoon portal, then %s",
 

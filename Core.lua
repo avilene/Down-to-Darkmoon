@@ -614,6 +614,73 @@ function addon:ShouldShowShoppingIngredientRow(questId, itemId, need)
   return still > 0
 end
 
+--- True when every quest-log objective for this quest is finished (shopping rows hidden).
+function addon:IsQuestObjectivePhaseComplete(questId)
+  if not questId then
+    return false
+  end
+  if not C_QuestLog or type(C_QuestLog.IsOnQuest) ~= "function" or not C_QuestLog.IsOnQuest(questId) then
+    return false
+  end
+  if type(C_QuestLog.GetQuestObjectives) ~= "function" then
+    return false
+  end
+  local ok, objs = pcall(C_QuestLog.GetQuestObjectives, questId)
+  if not ok or type(objs) ~= "table" then
+    return false
+  end
+  local hasObj = false
+  local allDone = true
+  for _, o in ipairs(objs) do
+    if o and type(o.finished) == "boolean" then
+      hasObj = true
+      if not o.finished then
+        allDone = false
+        break
+      end
+    end
+  end
+  return hasObj and allDone
+end
+
+--- Deduped shopping needs for bulk Buy/Pull (max still per itemId across active profession quests).
+function addon:GetActiveShoppingNeeds()
+  local byItem = {}
+  local skill = self:PlayerSkillLineSet()
+  for _, q in ipairs(self.Data.QUESTS or {}) do
+    if skill[q.skillLineId] then
+      local completed = self:IsProfessionQuestCompleted(q.questId)
+      local objectiveCompleted = self:IsQuestObjectivePhaseComplete(q.questId)
+      if not completed and not objectiveCompleted then
+        for _, stack in ipairs(q.requiredStacks or {}) do
+          local def = self.Data.ITEMS and self.Data.ITEMS[stack.itemKey]
+          if def and def.itemId and self:ShouldShowShoppingIngredientRow(q.questId, def.itemId, stack.count) then
+            local still = self:GetShoppingIngredientStillNeed(q.questId, def.itemId, stack.count)
+            if still > 0 then
+              local cur = byItem[def.itemId]
+              if not cur or still > cur.still then
+                byItem[def.itemId] = {
+                  itemId = def.itemId,
+                  itemKey = stack.itemKey,
+                  still = still,
+                }
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  local list = {}
+  for _, entry in pairs(byItem) do
+    list[#list + 1] = entry
+  end
+  table.sort(list, function(a, b)
+    return a.itemId < b.itemId
+  end)
+  return list
+end
+
 function addon:TogglePanel()
   if not self.UI or not self.UI.mainFrame then
     return
@@ -673,6 +740,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     end
     addon:LogDebug("core", "ADDON_LOADED: debug=%s", tostring(DownToDarkmoonDB.debug))
     addon.UI:CreateMainFrame()
+    addon.UI:InitBlizzardHooks()
     addon.Calendar:Init()
     addon.Minimap:Init()
     --- Always start hidden; user can explicitly open from the minimap button.
@@ -747,6 +815,12 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
       addon.UI:Refresh()
     end
+    if addon.UI and addon.UI.BlizzardHooks then
+      addon.UI.BlizzardHooks:ScheduleUpdate()
+    end
+    if addon.UI and addon.UI.UpdateBulkActionButtons then
+      addon.UI:UpdateBulkActionButtons()
+    end
     return
   end
   local Pit = Enum.PlayerInteractionType
@@ -765,6 +839,12 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
       if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
         addon.UI:Refresh()
       end
+      if addon.UI and addon.UI.BlizzardHooks then
+        addon.UI.BlizzardHooks:ScheduleUpdate()
+      end
+      if addon.UI and addon.UI.UpdateBulkActionButtons then
+        addon.UI:UpdateBulkActionButtons()
+      end
       return
     end
   end
@@ -773,8 +853,35 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
       if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
         addon.UI:Refresh()
       end
+      if addon.UI and addon.UI.BlizzardHooks then
+        addon.UI.BlizzardHooks:OnEvent(event, arg1)
+      end
+      if addon.UI and addon.UI.UpdateBulkActionButtons then
+        addon.UI:UpdateBulkActionButtons()
+      end
       return
     end
+  end
+  if event == "BANKFRAME_OPENED" or event == "BANKFRAME_CLOSED"
+    or event == "MERCHANT_SHOW" or event == "MERCHANT_CLOSED" then
+    if addon.UI and addon.UI.BlizzardHooks then
+      addon.UI.BlizzardHooks:OnEvent(event, arg1)
+    end
+    if addon.UI and addon.UI.UpdateBulkActionButtons then
+      addon.UI:UpdateBulkActionButtons()
+    end
+  end
+  if event == "PLAYER_REGEN_DISABLED" then
+    if addon.QuantityAssist then
+      addon.QuantityAssist:CancelPullQueue(true)
+    end
+    if addon.UI and addon.UI.UpdateBulkActionButtons then
+      addon.UI:UpdateBulkActionButtons()
+    end
+    if addon.UI and addon.UI.BlizzardHooks then
+      addon.UI.BlizzardHooks:ScheduleUpdate()
+    end
+    return
   end
   if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
     addon.UI:Refresh()
