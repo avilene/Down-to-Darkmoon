@@ -28,7 +28,7 @@ local _, addon = ...
 ---@field profession string
 ---@field skillLineId number
 ---@field requiredStacks { itemKey: string, count: number }[]
----@field useQuestItems { itemId: number, requireNear: { radiusPct: number, locations: { mapId: number, x: number, y: number, label: string }[] }? }[]?  -- panel: SecureActionButton `type=item` + bag `itemName` (Lucky's Grab-bag style)
+---@field useQuestItems { itemId: number, requireNear: { label: string?, radiusPct: number, locations: { mapId: number, x: number, y: number, label: string }[] }? }[]?
 ---@field hideRequiredStacksWhenHaveItemIds number[]?  -- hide vendor "reagents needed" rows when any of these crafted/processed items are in bags
 ---@field shoppingObjectiveItemId number?  -- crafted/hand-in item; vendor rows hide when quest progress + that item in bags cover the objective
 ---@field shoppingProgressItemId number?  -- quest-log objective item when vendor mat is not kit-crafted (cooking)
@@ -175,6 +175,7 @@ local QUESTS = {
       {
         itemId = 71964,
         requireNear = {
+          label = "anvil",
           radiusPct = 3,
           locations = {
             { mapId = 407, x = 55.0, y = 70.6, label = "Anvil (near Chronos)" },
@@ -221,7 +222,19 @@ local QUESTS = {
     skillLineId = PROFESSION_SKILL_LINE.engineering,
     --- Battered Wrench (Wowhead item=72110): use on Damaged Steam Tonks on the fairgrounds.
     useQuestItems = {
-      { itemId = 72110 },
+      {
+        itemId = 72110,
+        requireNear = {
+          label = "tonk",
+          radiusPct = 4,
+          locations = {
+            { mapId = 407, x = 49.6, y = 60.8, label = "Damaged Steam Tonk (near Rinling)" },
+            { mapId = 407, x = 50.4, y = 59.2, label = "Damaged Steam Tonk (east fairgrounds)" },
+            { mapId = 407, x = 48.5, y = 61.5, label = "Damaged Steam Tonk (south fairgrounds)" },
+            { mapId = 407, x = 50.9, y = 62.1, label = "Damaged Steam Tonk (northeast)" },
+          },
+        },
+      },
     },
     requiredStacks = {},
   },
@@ -310,7 +323,19 @@ local QUESTS = {
     --- Darkmoon Banner Kit (72048) crafts Darkmoon Banner (72049); plant banner on Loose Stones (Wowhead 29520).
     useQuestItems = {
       { itemId = 72048 },
-      { itemId = 72049 },
+      {
+        itemId = 72049,
+        requireNear = {
+          label = "loose stones",
+          radiusPct = 3,
+          locations = {
+            { mapId = 407, x = 55.5, y = 54.9, label = "Loose Stones (near Selina Dourman)" },
+            { mapId = 407, x = 56.3, y = 55.6, label = "Loose Stones (east)" },
+            { mapId = 407, x = 54.7, y = 53.8, label = "Loose Stones (west)" },
+            { mapId = 407, x = 55.2, y = 56.4, label = "Loose Stones (north)" },
+          },
+        },
+      },
     },
     shoppingObjectiveItemId = 72049,
     hideRequiredStacksWhenHaveItemIds = { 72049 },

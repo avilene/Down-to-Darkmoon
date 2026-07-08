@@ -21,8 +21,8 @@ local defaults = {
     hide = false,
     minimapPos = 225,
   },
-  --- Next Darkmoon opening after last calendar resolve ({ year, month, monthDay [, hour, minute] }); rolled forward when the calendar date catches up.
-  nextFaireStart = nil,
+  notifyFaireOpen = true,
+  notifyAllDone = true,
 }
 
 --- Ignores live in DownToDarkmoonCharDB (SavedVariablesPerCharacter).
@@ -30,6 +30,8 @@ local charDefaults = {
   ignoredProfessionQuestIds = {},
   --- Per-character panel visibility (true = hidden).
   hidden = true,
+  showOnLogin = false,
+  lastAllDoneFaireKey = nil,
 }
 
 local function strtrim(s)
@@ -390,6 +392,76 @@ function addon:IsProfessionQuestCompleted(questId)
   return false
 end
 
+--- Localized label for a `requireNear` gate (defaults to LOCATION_FALLBACK).
+function addon:GetRequireNearLabel(udef)
+  if udef and udef.requireNear and type(udef.requireNear.label) == "string" and udef.requireNear.label ~= "" then
+    return udef.requireNear.label
+  end
+  return L.LOCATION_FALLBACK
+end
+
+--- Two-line inactive banner: status + next Faire date.
+function addon:GetInactiveFaireBannerText()
+  local when = self:GetNextDarkmoonFaireStartDateString()
+  local line1 = L.PANEL_NOT_ACTIVE
+  local line2 = when and L.PANEL_NEXT_FAIRE:format(when) or L.PANEL_NEXT_FAIRE_UNKNOWN
+  return line1 .. "\n" .. line2
+end
+
+--- Trained profession quest completion counts (done = completed or ignored).
+function addon:GetDarkmoonProfessionCompletionCounts()
+  if not self.Data or not self.Data.QUESTS then
+    return 0, 0
+  end
+  local skill = self:PlayerSkillLineSet()
+  local done, total = 0, 0
+  for _, q in ipairs(self.Data.QUESTS) do
+    if skill[q.skillLineId] then
+      total = total + 1
+      local completed = self:IsProfessionQuestCompleted(q.questId)
+      local ignored = self:IsProfessionQuestIgnored(q.questId)
+      if completed or ignored then
+        done = done + 1
+      end
+    end
+  end
+  return done, total
+end
+
+--- Key for the current or upcoming Faire cycle (dedup notifications).
+function addon:GetCurrentFaireCycleKey()
+  if not self.Calendar or not self.Calendar.GetFaireCycleKeyForNow then
+    return nil
+  end
+  return self.Calendar:GetFaireCycleKeyForNow()
+end
+
+function addon:MaybeNotifyAllQuestsDone()
+  local db = self:GetDB()
+  if db.notifyAllDone == false then
+    return
+  end
+  if not self:IsDarkmoonActive() then
+    return
+  end
+  if not self:AreAllDarkmoonProfessionQuestsDoneForCharacter() then
+    return
+  end
+  local key = self:GetCurrentFaireCycleKey()
+  if not key then
+    return
+  end
+  local charDb = self:GetCharDB()
+  if charDb.lastAllDoneFaireKey == key then
+    return
+  end
+  charDb.lastAllDoneFaireKey = key
+  print(L.MSG_ALL_QUESTS_DONE)
+  if SOUNDKIT and SOUNDKIT.IG_QUEST_LIST_COMPLETE then
+    PlaySound(SOUNDKIT.IG_QUEST_LIST_COMPLETE)
+  end
+end
+
 --- True when this character has at least one tracked profession and every matching Darkmoon quest is completed or ignored (same rule as the panel “See you…” banner).
 function addon:AreAllDarkmoonProfessionQuestsDoneForCharacter()
   if not self.Data or not self.Data.QUESTS then
@@ -434,10 +506,11 @@ function addon:ShouldShowQuestUseItemRows(questId, ignored, completed)
   return ok and onQuest == true
 end
 
---- Active use-item row with a `requireNear` gate (e.g. Iron Stock at an anvil).
-function addon:GetActiveRequireNearUseQuestItem()
+--- All active use-item rows with a `requireNear` gate.
+function addon:CollectActiveRequireNearUseQuestItems()
+  local out = {}
   if not self.Data or not self.Data.QUESTS then
-    return nil
+    return out
   end
   local skill = self:PlayerSkillLineSet()
   for _, q in ipairs(self.Data.QUESTS) do
@@ -449,14 +522,29 @@ function addon:GetActiveRequireNearUseQuestItem()
           if udef and udef.requireNear and udef.itemId then
             if self:GetItemCountCompat(udef.itemId) > 0
               and self:QuestLogSpecialItemMatchesItemId(q.questId, udef.itemId) then
-              return udef
+              out[#out + 1] = udef
             end
           end
         end
       end
     end
   end
-  return nil
+  return out
+end
+
+--- First active gated use-item (legacy helper).
+function addon:GetActiveRequireNearUseQuestItem()
+  local list = self:CollectActiveRequireNearUseQuestItems()
+  return list[1]
+end
+
+function addon:GetActiveRequireNearProximitySignature()
+  local parts = {}
+  for _, udef in ipairs(self:CollectActiveRequireNearUseQuestItems()) do
+    local near = self:IsUseQuestItemNearRequirementMet(udef) and "1" or "0"
+    parts[#parts + 1] = tostring(udef.itemId) .. ":" .. near
+  end
+  return table.concat(parts, ";")
 end
 
 function addon:IsUseQuestItemNearRequirementMet(udef)
@@ -477,8 +565,8 @@ function addon:SetWaypointToClosestRequireNearLocation(udef)
   local loc = self.VendorRouting:GetClosestLocation(udef.requireNear.locations)
   if loc and self.Navigation then
     self.Navigation:SetWaypointPct(loc.mapId, loc.x, loc.y, loc.label)
-    if self.L and self.L.MSG_WAYPOINT_ANVIL then
-      print(self.L.MSG_WAYPOINT_ANVIL:format(loc.label))
+    if self.L and self.L.MSG_WAYPOINT_LOCATION then
+      print(self.L.MSG_WAYPOINT_LOCATION:format(loc.label))
     end
   end
 end
@@ -793,10 +881,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     addon.UI:InitBlizzardHooks()
     addon.Calendar:Init()
     addon.Minimap:Init()
-    --- Always start hidden; user can explicitly open from the minimap button.
-    addon:SetPanelHidden(true)
-    addon.UI.mainFrame:Hide()
-    addon:LogDebug("ui", "Startup: panel forced hidden.")
+    if addon.UI.ApplyMinimapVisibility then
+      addon.UI.ApplyMinimapVisibility()
+    end
     SLASH_DOWNTO_DARKMOON1 = "/dtdm"
     SLASH_DOWNTO_DARKMOON2 = "/downtodarkmoon"
     SlashCmdList["DOWNTO_DARKMOON"] = function(msg)
@@ -813,6 +900,24 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
       end
       if cmd == "caldebug" then
         addon.Calendar:DumpDarkmoonCalendarDebug()
+        return
+      end
+      if cmd == "" then
+        addon:TogglePanel()
+        return
+      end
+      if cmd == "help" then
+        print(L.SLASH_TOGGLE_HINT)
+        print(L.SLASH_DEBUG_HINT)
+        print(L.SLASH_CALDEBUG_USAGE)
+        print(L.SLASH_SCALE_USAGE)
+        print(L.SLASH_SETTINGS_USAGE)
+        return
+      end
+      if cmd == "settings" then
+        if addon.UI and addon.UI.OpenSettings then
+          addon.UI:OpenSettings()
+        end
         return
       end
       if cmd:sub(1, 5) == "scale" then
@@ -834,10 +939,11 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
         )
         return
       end
-      print(L.SLASH_DEBUG)
+      print(L.SLASH_TOGGLE_HINT)
       print(L.SLASH_DEBUG_HINT)
       print(L.SLASH_CALDEBUG_USAGE)
       print(L.SLASH_SCALE_USAGE)
+      print(L.SLASH_SETTINGS_USAGE)
     end
     return
   end
@@ -846,6 +952,20 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     addon.Calendar:ScheduleRefresh(0)
     addon.UI:ApplySavedPosition()
     addon.UI:ApplySavedScale()
+    if addon.UI.ApplyMinimapVisibility then
+      addon.UI.ApplyMinimapVisibility()
+    end
+    local charDb = addon:GetCharDB()
+    if charDb.showOnLogin == true and addon.UI and addon.UI.mainFrame then
+      addon.UI.mainFrame:Show()
+      addon:SetPanelHidden(false)
+      addon.UI:OnPanelShown()
+    else
+      addon:SetPanelHidden(true)
+      if addon.UI.mainFrame then
+        addon.UI.mainFrame:Hide()
+      end
+    end
     if addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
       addon.UI:Refresh()
     end
@@ -932,6 +1052,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
       addon.UI.BlizzardHooks:ScheduleUpdate()
     end
     return
+  end
+  if event == "QUEST_LOG_UPDATE" then
+    addon:MaybeNotifyAllQuestsDone()
   end
   if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
     addon.UI:Refresh()

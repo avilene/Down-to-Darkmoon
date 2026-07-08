@@ -36,4 +36,5 @@ UI/Buttons.lua
 UI/BlizzardHooks.lua
 UI/Rows.lua
 UI/Refresh.lua
+UI/Settings.lua
 Minimap.lua

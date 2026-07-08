@@ -152,16 +152,48 @@ local function playerAtDarkmoonIsland()
   return false
 end
 
+--- Stable key for the current or next Faire cycle (first Sunday YYYYMMDD).
+function Calendar:GetFaireCycleKeyForNow()
+  local now = getCurrentCalendarTime()
+  if not now then
+    return nil
+  end
+  if isDarkmoonFaireWeek(now) or playerAtDarkmoonIsland() then
+    local sunDay = firstSundayDayOfMonth(now.year, now.month)
+    if sunDay then
+      return now.year * 10000 + now.month * 100 + sunDay
+    end
+  end
+  local nextStart = getNextFirstSundayStartAfterNow(now)
+  if nextStart and nextStart.year and nextStart.month and nextStart.monthDay then
+    return nextStart.year * 10000 + nextStart.month * 100 + nextStart.monthDay
+  end
+  return nil
+end
+
 function Calendar:RefreshActiveState()
   self._hasRefreshedStateOnce = true
+  local wasActive = self.active == true
 
   if playerAtDarkmoonIsland() then
     self.active = true
+    if not wasActive and addon:GetDB().notifyFaireOpen ~= false then
+      print(addon.L.MSG_FAIRE_OPEN)
+      if SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPEN then
+        PlaySound(SOUNDKIT.IG_MAINMENU_OPEN)
+      end
+    end
     return
   end
 
   local now = getCurrentCalendarTime()
   self.active = now and isDarkmoonFaireWeek(now) or false
+  if not wasActive and self.active and addon:GetDB().notifyFaireOpen ~= false then
+    print(addon.L.MSG_FAIRE_OPEN)
+    if SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPEN then
+      PlaySound(SOUNDKIT.IG_MAINMENU_OPEN)
+    end
+  end
 end
 
 function Calendar:ScheduleRefresh(delay)

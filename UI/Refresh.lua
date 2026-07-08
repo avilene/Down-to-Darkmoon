@@ -20,6 +20,7 @@ function UI:UpdateBulkActionButtons()
     return
   end
   addon.QuantityAssist:UpdateBulkButtonState({ { buy = self.buyAllBtn, pull = self.pullAllBtn } })
+  self:LayoutTitleBar()
 end
 
 local function appendPoiCoordHint(text, profession)
@@ -37,20 +38,19 @@ function UI:StopProximityPoll()
   if self.mainFrame then
     self.mainFrame:SetScript("OnUpdate", nil)
   end
-  self._proximityNearOk = nil
+  self._proximityNearSig = nil
 end
 
 function UI:UpdateProximityPoll()
   if not self.mainFrame or not self.mainFrame:IsShown() then
     return
   end
-  local udef = addon:GetActiveRequireNearUseQuestItem()
-  if not udef then
+  local active = addon:CollectActiveRequireNearUseQuestItems()
+  if #active == 0 then
     self:StopProximityPoll()
     return
   end
-  local nearOk = addon:IsUseQuestItemNearRequirementMet(udef)
-  self._proximityNearOk = nearOk
+  self._proximityNearSig = addon:GetActiveRequireNearProximitySignature()
   if self.mainFrame:GetScript("OnUpdate") then
     return
   end
@@ -65,14 +65,13 @@ function UI:UpdateProximityPoll()
       return
     end
     elapsedAcc = 0
-    local active = addon:GetActiveRequireNearUseQuestItem()
-    if not active then
+    if #addon:CollectActiveRequireNearUseQuestItems() == 0 then
       addon.UI:StopProximityPoll()
       return
     end
-    local nowNear = addon:IsUseQuestItemNearRequirementMet(active)
-    if nowNear ~= addon.UI._proximityNearOk then
-      addon.UI._proximityNearOk = nowNear
+    local sig = addon:GetActiveRequireNearProximitySignature()
+    if sig ~= addon.UI._proximityNearSig then
+      addon.UI._proximityNearSig = sig
       if addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
         addon.UI:Refresh()
       end
@@ -93,11 +92,32 @@ function UI:OnPanelShown()
   self:UpdateProximityPoll()
 end
 
+function UI:UpdateCompletionSummary()
+  if not self.completionFs then
+    return
+  end
+  if not addon:IsDarkmoonActive() then
+    self.completionFs:Hide()
+    self:LayoutTitleBar()
+    return
+  end
+  local done, total = addon:GetDarkmoonProfessionCompletionCounts()
+  if total <= 0 then
+    self.completionFs:Hide()
+    self:LayoutTitleBar()
+    return
+  end
+  self.completionFs:SetText(L.PANEL_COMPLETION:format(done, total))
+  self.completionFs:Show()
+  self:LayoutTitleBar()
+end
+
 function UI:Refresh()
   if not self.mainFrame or not self.mainFrame:IsShown() then
     return
   end
   self:UpdateBulkActionButtons()
+  self:UpdateCompletionSummary()
 
   if not addon:IsDarkmoonActive() then
     --- After schedule has decided “inactive” once, skip repeated full paints from bag/merchant spam on boot.
@@ -112,12 +132,7 @@ function UI:Refresh()
       self.allDoneBanner:Hide()
     end
     self.content:Hide()
-    local when = addon:GetNextDarkmoonFaireStartDateString()
-    if when then
-      self.inactiveBanner:SetText(L.PANEL_SEE_YOU_ON:format(when))
-    else
-      self.inactiveBanner:SetText(L.PANEL_SEE_YOU_NEXT)
-    end
+    self.inactiveBanner:SetText(addon:GetInactiveFaireBannerText())
     self.inactiveBanner:Show()
     local ih = math.max(self.inactiveBanner:GetStringHeight(), 1)
     self.mainFrame:SetHeight(C.TITLE_H + C.GAP_TITLE_TO_BODY + ih + C.FRAME_BOTTOM_PAD)
@@ -249,7 +264,8 @@ function UI:Refresh()
                 urow.cntFs:SetText(L.COUNT_IN_BAGS:format(have))
                 urow.cntFs:SetTextColor(0.65, 0.85, 1)
               else
-                urow.cntFs:SetText(L.COUNT_NEED_ANVIL)
+                local locLabel = addon:GetRequireNearLabel(udef)
+                urow.cntFs:SetText(L.COUNT_NEED_LOCATION:format(locLabel))
                 urow.cntFs:SetTextColor(1, 0.55, 0.25)
               end
 
@@ -377,11 +393,13 @@ function UI:Refresh()
       self.allDoneBanner:ClearAllPoints()
       self.allDoneBanner:SetPoint("TOPLEFT", self.content, "TOPLEFT", 6, -y - C.ALL_DONE_GAP_TOP)
       local when = addon:GetNextDarkmoonFaireStartDateString()
+      local lines = { L.PANEL_ALL_DONE_FAIRE }
       if when then
-        self.allDoneBanner:SetText(L.PANEL_SEE_YOU_ON:format(when))
+        lines[#lines + 1] = L.PANEL_SEE_YOU_ON:format(when)
       else
-        self.allDoneBanner:SetText(L.PANEL_SEE_YOU_NEXT)
+        lines[#lines + 1] = L.PANEL_SEE_YOU_NEXT
       end
+      self.allDoneBanner:SetText(table.concat(lines, "\n"))
       self.allDoneBanner:Show()
       --- Reserve only the measured footer height (fixed 34–36px left a large empty gap).
       local bannerH = math.max(self.allDoneBanner:GetStringHeight(), 1)

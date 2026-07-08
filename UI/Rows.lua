@@ -393,8 +393,9 @@ function UI:GetQuestUseItemRow(i)
       if InCombatLockdown() then
         GameTooltip:AddLine(L.TIP_USE_COMBAT, 1, 0.35, 0.35, true)
       elseif self.dtdNearOk == false and self.dtdRequireNearUdef then
-        GameTooltip:AddLine(L.TIP_USE_NEED_ANVIL, 1, 0.55, 0.25, true)
-        GameTooltip:AddLine(L.TIP_USE_CLICK_ANVIL_WAYPOINT, 0.85, 0.85, 0.9, true)
+        local locLabel = addon:GetRequireNearLabel(self.dtdRequireNearUdef)
+        GameTooltip:AddLine(L.TIP_USE_NEED_LOCATION:format(locLabel), 1, 0.55, 0.25, true)
+        GameTooltip:AddLine(L.TIP_USE_CLICK_LOCATION_WAYPOINT:format(locLabel), 0.85, 0.85, 0.9, true)
       else
         GameTooltip:AddLine(
           L.TIP_USE_BAGS,

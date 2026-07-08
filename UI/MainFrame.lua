@@ -28,6 +28,32 @@ function UI:ApplySavedScale()
   f:SetScale(s)
 end
 
+--- Keep title, completion count, bulk buttons, and close from overlapping.
+function UI:LayoutTitleBar()
+  if not self.titleFs or not self.titleIcon or not self.closeBtn then
+    return
+  end
+  local rightEdge = self.closeBtn
+  if self.completionFs and self.completionFs:IsShown() then
+    self.completionFs:ClearAllPoints()
+    self.completionFs:SetPoint("RIGHT", self.closeBtn, "LEFT", -6, 0)
+    rightEdge = self.completionFs
+  end
+  if self.buyAllBtn and self.buyAllBtn:IsShown() then
+    self.buyAllBtn:ClearAllPoints()
+    self.buyAllBtn:SetPoint("RIGHT", rightEdge, "LEFT", -4, 0)
+    rightEdge = self.buyAllBtn
+  end
+  if self.pullAllBtn and self.pullAllBtn:IsShown() then
+    self.pullAllBtn:ClearAllPoints()
+    self.pullAllBtn:SetPoint("RIGHT", rightEdge, "LEFT", -C.ACTION_BTN_GAP, 0)
+    rightEdge = self.pullAllBtn
+  end
+  self.titleFs:ClearAllPoints()
+  self.titleFs:SetPoint("LEFT", self.titleIcon, "RIGHT", 8, 0)
+  self.titleFs:SetPoint("RIGHT", rightEdge, "LEFT", -8, 0)
+end
+
 function UI:SavePosition()
   local f = self.mainFrame
   if not f then
@@ -110,10 +136,17 @@ function UI:CreateMainFrame()
 
   local title = titleBar:CreateFontString(nil, "OVERLAY", "SystemFont_Med2")
   title:SetPoint("LEFT", titleIcon, "RIGHT", 8, 0)
-  title:SetPoint("RIGHT", titleBar, "RIGHT", -178, 0)
   title:SetJustifyH("LEFT")
   title:SetTextColor(C.COLOR_TITLE[1], C.COLOR_TITLE[2], C.COLOR_TITLE[3])
   title:SetText(L.PANEL_TITLE)
+
+  local completionFs = titleBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  completionFs:SetJustifyH("RIGHT")
+  completionFs:SetTextColor(0.55, 1, 0.65)
+  completionFs:Hide()
+  self.titleIcon = titleIcon
+  self.titleFs = title
+  self.completionFs = completionFs
 
   --- Lowercase “x” only — ASCII, no OUTLINE flag (outline + large size stretched the glyph vertically).
   local closeBtn = CreateFrame("Button", nil, titleBar)
@@ -213,10 +246,13 @@ function UI:CreateMainFrame()
   content:SetHeight(32)
 
   self.mainFrame = f
+  self.titleBar = titleBar
   self.inactiveBanner = inactiveBanner
+  self.closeBtn = closeBtn
   self.buyAllBtn = buyAllBtn
   self.pullAllBtn = pullAllBtn
   self.content = content
+  self:LayoutTitleBar()
   self.poolQuest = {}
   self.poolObjective = {}
   self.poolItem = {}

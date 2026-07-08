@@ -8,9 +8,21 @@ local enUS = {
   PANEL_COMPLETED = "completed",
   PANEL_COMPLETED_IGNORED = "completed (ignored)",
   PANEL_IGNORED = "ignored",
+  PANEL_NOT_ACTIVE = "Darkmoon Faire is not active.",
+  PANEL_NEXT_FAIRE = "Next Faire: |cffffffff%s|r",
+  PANEL_NEXT_FAIRE_UNKNOWN = "Next Faire date unavailable.",
   PANEL_SEE_YOU_ON = "See you on |cffffffff%s|r for the next Faire!",
   PANEL_SEE_YOU_NEXT = "See you at the next Faire!",
+  PANEL_ALL_DONE_FAIRE = "All done this Faire!",
+  PANEL_COMPLETION = "%d / %d",
   PANEL_NO_QUESTS = "No Darkmoon profession quests to show. Train a profession or use a character with one.",
+
+  MINIMAP_TITLE = "Down to Darkmoon",
+  MINIMAP_NOT_ACTIVE = "Darkmoon Faire is not active.",
+  MINIMAP_NEXT_FAIRE = "Next Faire: |cffffffff%s|r",
+  MINIMAP_NEXT_FAIRE_UNKNOWN = "Next Faire date unavailable.",
+  MINIMAP_CLICK_TOGGLE = "Click to toggle the addon.",
+  MINIMAP_RIGHT_CLICK_SETTINGS = "Right-click for settings.",
 
   BTN_BUY = "Buy",
   BTN_PULL = "Pull",
@@ -62,11 +74,12 @@ local enUS = {
   TIP_USE_HEADER = "Use quest item",
   TIP_USE_COMBAT = "Unavailable in combat (try again out of combat).",
   TIP_USE_BAGS = "Uses the item in your bags.",
-  TIP_USE_NEED_ANVIL = "Move near an anvil on the fairgrounds first.",
-  TIP_USE_CLICK_ANVIL_WAYPOINT = "Click the row to set a waypoint to the closest anvil.",
+  TIP_USE_NEED_LOCATION = "Move near a %s on the fairgrounds first.",
+  TIP_USE_CLICK_LOCATION_WAYPOINT = "Click the row to set a waypoint to the closest %s.",
 
   COUNT_IN_BAGS = "%d in bags",
-  COUNT_NEED_ANVIL = "Need anvil",
+  COUNT_NEED_LOCATION = "Need %s",
+  LOCATION_FALLBACK = "location",
   ITEM_FALLBACK = "Item %s",
 
   MSG_CANNOT_PULL_COMBAT = "|cfffeaa00Down to Darkmoon:|r Cannot pull from the bank in combat.",
@@ -84,17 +97,29 @@ local enUS = {
   MSG_PULL_ALL_STOPPED = "|cfffeaa00Down to Darkmoon:|r Withdraw stopped (bank closed, bags full, or nothing left in bank).",
   MSG_WAYPOINT_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Waypoint — %s (via Darkmoon portal first)",
   MSG_MAP_PIN_VIA_PORTAL = "|cfffeaa00Down to Darkmoon:|r Map pin — Darkmoon portal, then %s",
-  MSG_WAYPOINT_ANVIL = "|cfffeaa00Down to Darkmoon:|r Waypoint — %s",
+  MSG_WAYPOINT_LOCATION = "|cfffeaa00Down to Darkmoon:|r Waypoint — %s",
+  MSG_FAIRE_OPEN = "|cfffeaa00Down to Darkmoon:|r The Darkmoon Faire is now active!",
+  MSG_ALL_QUESTS_DONE = "|cfffeaa00Down to Darkmoon:|r All Darkmoon profession quests complete for this Faire!",
 
   SLASH_DEBUG = "|cfffeaa00Down to Darkmoon:|r Debug logging:",
   SLASH_ON = "|cff33ff33ON|r",
   SLASH_OFF = "|cffff5555OFF|r",
+  SLASH_TOGGLE_HINT = "|cfffeaa00Down to Darkmoon:|r /dtdm (toggle panel)  |  /dtdm help",
   SLASH_DEBUG_HINT = "|cfffeaa00Down to Darkmoon:|r /dtdm debug (toggle debug logging)",
   SLASH_SCALE_USAGE = "|cfffeaa00Down to Darkmoon:|r /dtdm scale 0.85 (window scale, range |cffffffff0.5–1.5|r)",
   SLASH_SCALE_PARSE = "|cfffeaa00Down to Darkmoon:|r Could not parse scale; example: |cffffffff/dtdm scale 1|r",
   SLASH_SCALE_SET = "|cfffeaa00Down to Darkmoon:|r Panel scale set to |cffffffff%.2f|r (saved).",
   SLASH_CALDEBUG_USAGE = "|cfffeaa00Down to Darkmoon:|r /dtdm caldebug — print Darkmoon calendar API rows to chat.",
+  SLASH_SETTINGS_USAGE = "|cfffeaa00Down to Darkmoon:|r /dtdm settings — open addon settings.",
 
+  SETTINGS_TITLE = "Down to Darkmoon Settings",
+  SETTINGS_SCALE = "Panel scale",
+  SETTINGS_SHOW_ON_LOGIN = "Show panel on login",
+  SETTINGS_HIDE_MINIMAP = "Hide minimap button",
+  SETTINGS_NOTIFY_FAIRE_OPEN = "Notify when Faire opens",
+  SETTINGS_NOTIFY_ALL_DONE = "Notify when all quests complete",
+  SETTINGS_DEBUG = "Debug logging",
+  SETTINGS_CLOSE = "Close",
 }
 
 local locales = {
@@ -104,4 +129,3 @@ local locales = {
 local active = locales[locale] or enUS
 setmetatable(active, { __index = enUS })
 addon.L = active
-
