@@ -9,6 +9,7 @@ externals:
   Libs/CallbackHandler-1.0: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0
   Libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1
   Libs/LibDBIcon-1.0: https://repos.curseforge.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
+  Libs/HereBeDragons: https://repos.curseforge.com/wow/herebedragons/trunk
 
 # CurseForge “embedded library” relations (project slugs).
 embedded-libraries:
@@ -16,6 +17,7 @@ embedded-libraries:
   - callbackhandler
   - libdatabroker-1-1
   - libdbicon-1-0
+  - herebedragons
 
 ignore:
   - .github

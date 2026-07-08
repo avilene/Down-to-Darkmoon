@@ -347,6 +347,63 @@ local QUESTS = {
   },
 }
 
+--- RareScanner-style discoverable interactables per profession quest (map/minimap pins).
+--- Coords are Darkmoon Island (uiMap 407) percentages; SPOT-CHECK IN-GAME — some are Wowhead/estimate
+--- clusters, not exact single spawns. `profession` matches quest `.profession`; pins only show while on that quest.
+--- Blacksmithing/engineering/tailoring reuse the same coords as the `requireNear` gates above.
+local INTERACTABLES = {
+  blacksmithing = {
+    label = "Anvil",
+    locations = {
+      { mapId = 407, x = 55.0, y = 70.6, label = "Anvil (near Chronos)" },
+      { mapId = 407, x = 47.6, y = 66.2, label = "Anvil (heirloom tent)" },
+    },
+  },
+  engineering = {
+    label = "Damaged Steam Tonk",
+    locations = {
+      { mapId = 407, x = 49.6, y = 60.8, label = "Damaged Steam Tonk (near Rinling)" },
+      { mapId = 407, x = 50.4, y = 59.2, label = "Damaged Steam Tonk (east fairgrounds)" },
+      { mapId = 407, x = 48.5, y = 61.5, label = "Damaged Steam Tonk (south fairgrounds)" },
+      { mapId = 407, x = 50.9, y = 62.1, label = "Damaged Steam Tonk (northeast)" },
+    },
+  },
+  tailoring = {
+    label = "Loose Stones",
+    locations = {
+      { mapId = 407, x = 55.5, y = 54.9, label = "Loose Stones (near Selina Dourman)" },
+      { mapId = 407, x = 56.3, y = 55.6, label = "Loose Stones (east)" },
+      { mapId = 407, x = 54.7, y = 53.8, label = "Loose Stones (west)" },
+      { mapId = 407, x = 55.2, y = 56.4, label = "Loose Stones (north)" },
+    },
+  },
+  herbalism = {
+    label = "Darkblossom",
+    locations = {
+      { mapId = 407, x = 54.2, y = 69.8, label = "Darkblossom (near Chronos)" },
+      { mapId = 407, x = 52.8, y = 72.4, label = "Darkblossom (south path)" },
+      { mapId = 407, x = 56.1, y = 68.5, label = "Darkblossom (east)" },
+      { mapId = 407, x = 50.9, y = 73.6, label = "Darkblossom (west path)" },
+    },
+  },
+  mining = {
+    label = "Tonk Scrap",
+    locations = {
+      { mapId = 407, x = 49.2, y = 60.2, label = "Tonk Scrap (near Rinling)" },
+      { mapId = 407, x = 50.6, y = 58.7, label = "Tonk Scrap (east fairgrounds)" },
+      { mapId = 407, x = 48.1, y = 62.0, label = "Tonk Scrap (south fairgrounds)" },
+    },
+  },
+  skinning = {
+    label = "Staked Skin",
+    locations = {
+      { mapId = 407, x = 54.8, y = 71.2, label = "Staked Skin (near Chronos)" },
+      { mapId = 407, x = 53.4, y = 73.1, label = "Staked Skin (south)" },
+      { mapId = 407, x = 56.0, y = 69.9, label = "Staked Skin (east)" },
+    },
+  },
+}
+
 --- Faire staging-ground portals (only while the event is active). uiMap: Elwynn=37, Mulgore=7.
 --- Coords from Wowhead / in-game (south of Goldshire; southwest base of Thunder Bluff).
 local DARKMOON_PORTALS = {
@@ -379,5 +436,6 @@ addon.Data = {
   ITEMS = ITEMS,
   QUESTS = QUESTS,
   POIS = POIS,
+  INTERACTABLES = INTERACTABLES,
   DARKMOON_PORTALS = DARKMOON_PORTALS,
 }

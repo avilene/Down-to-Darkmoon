@@ -49,6 +49,7 @@ function UI:RefreshSettingsFrame()
   f.hideMinimap:SetChecked(db.minimap and db.minimap.hide == true)
   f.notifyFaireOpen:SetChecked(db.notifyFaireOpen ~= false)
   f.notifyAllDone:SetChecked(db.notifyAllDone ~= false)
+  f.showMapPins:SetChecked(db.showMapPins == true)
   f.debug:SetChecked(db.debug == true)
 end
 
@@ -58,7 +59,7 @@ function UI:CreateSettingsFrame()
   end
 
   local f = CreateFrame("Frame", "DownToDarkmoonSettings", UIParent, "BackdropTemplate")
-  f:SetSize(340, 280)
+  f:SetSize(340, 310)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
   f:SetMovable(true)
@@ -159,6 +160,16 @@ function UI:CreateSettingsFrame()
   end)
 
   y = y - 28
+  local showMapPins = createCheckbox(content, L.SETTINGS_SHOW_MAP_PINS, y, function()
+    return addon:GetDB().showMapPins == true
+  end, function(v)
+    addon:GetDB().showMapPins = v
+    if addon.MapPins and addon.MapPins.Refresh then
+      addon.MapPins:Refresh()
+    end
+  end)
+
+  y = y - 28
   local debug = createCheckbox(content, L.SETTINGS_DEBUG, y, function()
     return addon:GetDB().debug == true
   end, function(v)
@@ -171,6 +182,7 @@ function UI:CreateSettingsFrame()
   f.hideMinimap = hideMinimap
   f.notifyFaireOpen = notifyFaireOpen
   f.notifyAllDone = notifyAllDone
+  f.showMapPins = showMapPins
   f.debug = debug
   self.settingsFrame = f
 end

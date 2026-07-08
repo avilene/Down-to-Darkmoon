@@ -23,6 +23,9 @@ local defaults = {
   },
   notifyFaireOpen = true,
   notifyAllDone = true,
+  --- RareScanner-style map/minimap pins for discoverable interactables (on active quest only).
+  --- Opt-in: off by default, enable via /dtdm settings.
+  showMapPins = false,
 }
 
 --- Ignores live in DownToDarkmoonCharDB (SavedVariablesPerCharacter).
@@ -881,6 +884,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     addon.UI:InitBlizzardHooks()
     addon.Calendar:Init()
     addon.Minimap:Init()
+    if addon.MapPins and addon.MapPins.Init then
+      addon.MapPins:Init()
+    end
     if addon.UI.ApplyMinimapVisibility then
       addon.UI.ApplyMinimapVisibility()
     end
@@ -1055,6 +1061,9 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
   end
   if event == "QUEST_LOG_UPDATE" then
     addon:MaybeNotifyAllQuestsDone()
+    if addon.MapPins and addon.MapPins.ScheduleRefresh then
+      addon.MapPins:ScheduleRefresh(0.4)
+    end
   end
   if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
     addon.UI:Refresh()

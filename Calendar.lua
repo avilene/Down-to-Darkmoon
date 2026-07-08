@@ -210,6 +210,9 @@ function Calendar:ScheduleRefresh(delay)
     if addon.Minimap and addon.Minimap.RefreshTooltip then
       addon.Minimap:RefreshTooltip()
     end
+    if addon.MapPins and addon.MapPins.ScheduleRefresh then
+      addon.MapPins:ScheduleRefresh(0)
+    end
   end)
 end
 

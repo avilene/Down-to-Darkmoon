@@ -118,6 +118,7 @@ local enUS = {
   SETTINGS_HIDE_MINIMAP = "Hide minimap button",
   SETTINGS_NOTIFY_FAIRE_OPEN = "Notify when Faire opens",
   SETTINGS_NOTIFY_ALL_DONE = "Notify when all quests complete",
+  SETTINGS_SHOW_MAP_PINS = "Show map/minimap pins for quest objects",
   SETTINGS_DEBUG = "Debug logging",
   SETTINGS_CLOSE = "Close",
 }

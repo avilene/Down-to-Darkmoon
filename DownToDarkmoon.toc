@@ -38,3 +38,4 @@ UI/Rows.lua
 UI/Refresh.lua
 UI/Settings.lua
 Minimap.lua
+MapPins.lua
