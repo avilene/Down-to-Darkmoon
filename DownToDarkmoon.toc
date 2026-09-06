@@ -1,4 +1,4 @@
-## Interface: 120000, 120001, 120005
+## Interface: 120000, 120001, 120005, 120100
 ## Title: Down to Darkmoon
 ## IconTexture: Interface\Icons\INV_Misc_Ticket_Tarot_Elemental_01
 ## Category: Professions
