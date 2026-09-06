@@ -152,7 +152,7 @@ function UI:Refresh()
   local any = false
 
   for _, q in ipairs(addon.Data.QUESTS) do
-    if skill[q.skillLineId] then
+    if addon:ShouldShowProfessionQuest(q, skill) then
       any = true
       local questLabel = addon:GetQuestTitleByIDCompat(q.questId) or q.name
       qi = qi + 1
@@ -202,6 +202,8 @@ function UI:Refresh()
       end
 
       y = y + C.QUEST_ROW_H + C.ROW_GAP
+
+      local subBefore = oi + ii + ui
 
       if not completed then
         for _, entry in ipairs(addon:GetQuestObjectiveEntries(q.questId)) do
@@ -369,6 +371,19 @@ function UI:Refresh()
             y = y + C.ITEM_ROW_H + C.ROW_GAP
           end
         end
+      end
+
+      --- Gathering quests (fishing, herbalism, …) have no shopping rows until accepted.
+      if (oi + ii + ui) == subBefore and addon:IsProfessionQuestAvailableToPickUp(q.questId) then
+        oi = oi + 1
+        local orow = self:GetObjectiveRow(oi)
+        orow:ClearAllPoints()
+        orow:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -y)
+        local npc = addon:GetProfessionQuestPickupNpcLabel(q.profession)
+        orow.fs:SetText(npc and L.PANEL_PICK_UP_AT:format(npc) or L.PANEL_PICK_UP)
+        orow.fs:SetTextColor(1, 0.82, 0.28)
+        orow:Show()
+        y = y + C.OBJECTIVE_ROW_H + C.ROW_GAP
       end
 
       y = y + C.SECTION_GAP

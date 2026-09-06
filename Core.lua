@@ -101,19 +101,79 @@ local function forEachProfessionIndex(callback)
   end
 end
 
+local function rememberSkillLine(set, skillLineID)
+  if type(skillLineID) ~= "number" then
+    return
+  end
+  set[skillLineID] = true
+  if not C_TradeSkillUI or type(C_TradeSkillUI.GetProfessionInfoBySkillLineID) ~= "function" then
+    return
+  end
+  local ok, info = pcall(C_TradeSkillUI.GetProfessionInfoBySkillLineID, skillLineID)
+  if not ok or type(info) ~= "table" then
+    return
+  end
+  --- Expansion skill lines (Khaz Algar Cooking, etc.) should still match Data/Retail.lua parent IDs.
+  if type(info.parentProfessionID) == "number" then
+    set[info.parentProfessionID] = true
+  end
+  if type(info.professionID) == "number" then
+    set[info.professionID] = true
+  end
+end
+
 function addon:PlayerSkillLineSet()
   local set = {}
   forEachProfessionIndex(function(profIndex)
     local _, _, _, _, _, _, skillLineID = GetProfessionInfo(profIndex)
-    if skillLineID then
-      set[skillLineID] = true
-    end
+    rememberSkillLine(set, skillLineID)
   end)
   return set
 end
 
 function addon:PlayerHasProfession(skillLineId)
-  return self:PlayerSkillLineSet()[skillLineId]
+  return self:PlayerSkillLineSet()[skillLineId] and true or false
+end
+
+function addon:IsOnProfessionQuest(questId)
+  if not questId or not C_QuestLog or type(C_QuestLog.IsOnQuest) ~= "function" then
+    return false
+  end
+  local ok, onQuest = pcall(C_QuestLog.IsOnQuest, questId)
+  return ok and onQuest == true
+end
+
+--- List a Darkmoon profession quest when the character has the skill, or already has it in the log.
+function addon:ShouldShowProfessionQuest(q, skillSet)
+  if not q or not q.questId then
+    return false
+  end
+  skillSet = skillSet or self:PlayerSkillLineSet()
+  if q.skillLineId and skillSet[q.skillLineId] then
+    return true
+  end
+  return self:IsOnProfessionQuest(q.questId)
+end
+
+--- Faire is active (panel-level) and this quest can still be accepted.
+function addon:IsProfessionQuestAvailableToPickUp(questId)
+  if not questId or self:IsProfessionQuestCompleted(questId) or self:IsProfessionQuestIgnored(questId) then
+    return false
+  end
+  return not self:IsOnProfessionQuest(questId)
+end
+
+function addon:GetProfessionQuestPickupNpcLabel(profession)
+  local p = self.Data and self.Data.POIS and profession and self.Data.POIS[profession]
+  if not p or type(p.label) ~= "string" or p.label == "" then
+    return nil
+  end
+  local name = p.label:gsub("%s+%b()", "")
+  name = name:match("^%s*(.-)%s*$") or name
+  if name == "" then
+    return p.label
+  end
+  return name
 end
 
 --- Item API compatibility: some game builds expose C_Item only partially.
@@ -435,7 +495,7 @@ function addon:GetDarkmoonProfessionCompletionCounts()
   local skill = self:PlayerSkillLineSet()
   local done, total = 0, 0
   for _, q in ipairs(self.Data.QUESTS) do
-    if skill[q.skillLineId] then
+    if self:ShouldShowProfessionQuest(q, skill) then
       total = total + 1
       local completed = self:IsProfessionQuestCompleted(q.questId)
       local ignored = self:IsProfessionQuestIgnored(q.questId)
@@ -489,7 +549,7 @@ function addon:AreAllDarkmoonProfessionQuestsDoneForCharacter()
   local skill = self:PlayerSkillLineSet()
   local any = false
   for _, q in ipairs(self.Data.QUESTS) do
-    if skill[q.skillLineId] then
+    if self:ShouldShowProfessionQuest(q, skill) then
       any = true
       local completed = self:IsProfessionQuestCompleted(q.questId)
       local ignored = self:IsProfessionQuestIgnored(q.questId)
@@ -533,7 +593,7 @@ function addon:CollectActiveRequireNearUseQuestItems()
   end
   local skill = self:PlayerSkillLineSet()
   for _, q in ipairs(self.Data.QUESTS) do
-    if skill[q.skillLineId] then
+    if self:ShouldShowProfessionQuest(q, skill) then
       local completed = self:IsProfessionQuestCompleted(q.questId)
       local ignored = self:IsProfessionQuestIgnored(q.questId)
       if self:ShouldShowQuestUseItemRows(q.questId, ignored, completed) and type(q.useQuestItems) == "table" then
@@ -804,7 +864,7 @@ function addon:GetActiveShoppingNeeds()
   local byItem = {}
   local skill = self:PlayerSkillLineSet()
   for _, q in ipairs(self.Data.QUESTS or {}) do
-    if skill[q.skillLineId] then
+    if self:ShouldShowProfessionQuest(q, skill) then
       local completed = self:IsProfessionQuestCompleted(q.questId)
       local objectiveCompleted = self:IsQuestObjectivePhaseComplete(q.questId)
       if not completed and not objectiveCompleted then
@@ -866,6 +926,7 @@ eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
 eventFrame:RegisterEvent("QUEST_ACCEPTED")
 eventFrame:RegisterEvent("QUEST_TURNED_IN")
 eventFrame:RegisterEvent("QUEST_REMOVED")
+eventFrame:RegisterEvent("SKILL_LINES_CHANGED")
 eventFrame:RegisterEvent("BANKFRAME_OPENED")
 eventFrame:RegisterEvent("BANKFRAME_CLOSED")
 eventFrame:RegisterEvent("MERCHANT_SHOW")
