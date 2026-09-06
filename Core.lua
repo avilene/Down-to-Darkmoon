@@ -42,6 +42,8 @@ local function strtrim(s)
 end
 
 local eventFrame = CreateFrame("Frame")
+--- Quest-log APIs can lag one tick behind QUEST_ACCEPTED; repaint after a short delay.
+local questUiRefreshTimer
 
 local function mergeDefaults(dst, src)
   if type(dst) ~= "table" then
@@ -86,17 +88,27 @@ function addon:LogDebug(channel, msg, ...)
   end
 end
 
-function addon:PlayerSkillLineSet()
-  local set = {}
-  local profs = { GetProfessions() }
-  for _, profIndex in ipairs(profs) do
+--- GetProfessions() is prof1, prof2, archaeology, fishing, cooking [, firstAid].
+--- Archaeology (slot 3) is often nil, so ipairs on the packed result never reaches fishing/cooking.
+local function forEachProfessionIndex(callback)
+  local n = select("#", GetProfessions())
+  local packed = { GetProfessions() }
+  for i = 1, n do
+    local profIndex = packed[i]
     if profIndex then
-      local _, _, _, _, _, _, skillLineID = GetProfessionInfo(profIndex)
-      if skillLineID then
-        set[skillLineID] = true
-      end
+      callback(profIndex)
     end
   end
+end
+
+function addon:PlayerSkillLineSet()
+  local set = {}
+  forEachProfessionIndex(function(profIndex)
+    local _, _, _, _, _, _, skillLineID = GetProfessionInfo(profIndex)
+    if skillLineID then
+      set[skillLineID] = true
+    end
+  end)
   return set
 end
 
@@ -307,14 +319,18 @@ function addon:GetProfessionIconTextureForSkillLine(skillLineId)
       return tex
     end
   end
-  local profs = { GetProfessions() }
-  for _, profIndex in ipairs(profs) do
-    if profIndex then
-      local _, icon, _, _, _, _, sl = GetProfessionInfo(profIndex)
-      if sl == skillLineId and icon then
-        return icon
-      end
+  local found
+  forEachProfessionIndex(function(profIndex)
+    if found then
+      return
     end
+    local _, icon, _, _, _, _, sl = GetProfessionInfo(profIndex)
+    if sl == skillLineId and icon then
+      found = icon
+    end
+  end)
+  if found then
+    return found
   end
   return FALLBACK_PROFESSION_TEXTURE[skillLineId]
 end
@@ -847,6 +863,9 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("BAG_UPDATE")
 eventFrame:RegisterEvent("UNIT_INVENTORY_CHANGED")
 eventFrame:RegisterEvent("QUEST_LOG_UPDATE")
+eventFrame:RegisterEvent("QUEST_ACCEPTED")
+eventFrame:RegisterEvent("QUEST_TURNED_IN")
+eventFrame:RegisterEvent("QUEST_REMOVED")
 eventFrame:RegisterEvent("BANKFRAME_OPENED")
 eventFrame:RegisterEvent("BANKFRAME_CLOSED")
 eventFrame:RegisterEvent("MERCHANT_SHOW")
@@ -1059,10 +1078,27 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     end
     return
   end
-  if event == "QUEST_LOG_UPDATE" then
+  if event == "QUEST_LOG_UPDATE"
+    or event == "QUEST_ACCEPTED"
+    or event == "QUEST_TURNED_IN"
+    or event == "QUEST_REMOVED" then
     addon:MaybeNotifyAllQuestsDone()
     if addon.MapPins and addon.MapPins.ScheduleRefresh then
       addon.MapPins:ScheduleRefresh(0.4)
+    end
+    --- Accept/turn-in can land before IsOnQuest / objectives are readable.
+    if event ~= "QUEST_LOG_UPDATE" then
+      if questUiRefreshTimer then
+        questUiRefreshTimer:Cancel()
+        questUiRefreshTimer = nil
+      end
+      questUiRefreshTimer = C_Timer.NewTimer(0.3, function()
+        questUiRefreshTimer = nil
+        if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
+          addon.UI:Refresh()
+          addon.UI:UpdateProximityPoll()
+        end
+      end)
     end
   end
   if addon.UI and addon.UI.mainFrame and addon.UI.mainFrame:IsShown() then
